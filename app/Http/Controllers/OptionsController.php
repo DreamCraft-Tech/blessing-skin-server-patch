@@ -210,8 +210,26 @@ class OptionsController extends Controller
             $form->checkbox('recaptcha_invisible')->label();
         })->handle();
 
+        $updates = Option::form('updates', '更新与插件仓库', function ($form) {
+            $form->text('update_source', '主站更新检测 URL')->placeholder(config('app.update_source'));
+            $form->text('plugins_registry', '插件仓库 URL')->placeholder(config('plugins.registry'))
+                ->description('语言地址可使用 {lang}，由系统选择 en 或 zh_CN。');
+        })->type('danger')->before(function () {
+            request()->validate([
+                'update_source' => 'nullable|url:http,https|max:2048',
+                'plugins_registry' => ['nullable', 'string', 'max:2048', function ($attribute, $value, $fail) {
+                    if (validator(['url' => str_replace('{lang}', 'en', $value)], ['url' => 'url:http,https'])->fails()) {
+                        $fail('请输入有效的 HTTP 或 HTTPS 插件仓库地址。');
+                    }
+                }],
+            ]);
+        })->handle()->always(function ($form) {
+            $form->with('update_source', option('update_source') ?: config('app.update_source'));
+            $form->with('plugins_registry', option('plugins_registry') ?: config('plugins.registry'));
+        });
+
         return view('admin.options')
-            ->with('forms', compact('general', 'meta', 'recaptcha'));
+            ->with('forms', compact('general', 'meta', 'recaptcha', 'updates'));
     }
 
     public function resource(Request $request)

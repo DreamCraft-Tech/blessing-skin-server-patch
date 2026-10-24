@@ -35,7 +35,7 @@ class UpdateController extends Controller
         ]);
     }
 
-    public function download(Unzip $unzip, Filesystem $filesystem)
+    public function download(Request $request, Unzip $unzip, Filesystem $filesystem, UpdatePackage $packages)
     {
         $info = $this->getUpdateInfo();
         if (!$info['ok'] || !$this->canUpdate($info['info'])['can']) {
@@ -51,6 +51,25 @@ class UpdateController extends Controller
         ])->get($info['url']);
 
         if ($response->ok()) {
+            if (Arr::get($info, 'package') === 'full') {
+                try {
+                    $checksum = Arr::get($info, 'sha256', '');
+                    if (!preg_match('/\A[a-f0-9]{64}\z/D', $checksum) || !hash_equals($checksum, hash_file('sha256', $path))) {
+                        throw new \RuntimeException('运行包校验值与更新信息不一致，请重新检查更新。');
+                    }
+                    $pending = $packages->prepare($path);
+                    if ($pending['version'] !== $info['latest']) {
+                        throw new \RuntimeException('运行包版本与更新信息不一致。');
+                    }
+                    $request->session()->put('system_update_package', $pending);
+
+                    return json('运行包已下载并校验，请确认后安装。', 0, ['review' => true]);
+                } catch (\RuntimeException $e) {
+                    return json($e->getMessage(), 1);
+                } finally {
+                    @unlink($path);
+                }
+            }
             $unzip->extract($path, base_path());
 
             // Delete options cache. This allows us to update the version.
@@ -105,7 +124,7 @@ class UpdateController extends Controller
         try {
             $response = Http::connectTimeout(3)->timeout(8)->withOptions([
                 'verify' => CaBundle::getSystemCaRootBundlePath(),
-            ])->get(config('app.update_source'));
+            ])->get(option('update_source') ?: config('app.update_source'));
 
             if ($response->ok()) {
                 $info = $response->json();

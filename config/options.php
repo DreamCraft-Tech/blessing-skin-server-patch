@@ -43,6 +43,8 @@ return [
     'meta_description' => '',
     'meta_extras' => '',
     'cdn_address' => '',
+    'update_source' => '',
+    'plugins_registry' => '',
     'recaptcha_sitekey' => '',
     'recaptcha_secretkey' => '',
     'recaptcha_invisible' => 'false',

@@ -11,12 +11,13 @@ export default async function handler(event: MouseEvent) {
     'admin.downloading',
   )}`
 
-  const { code, message }: ResponseBody = await post('/admin/update/download')
+  const { code, message, data }: ResponseBody<{ review?: boolean }> =
+    await post('/admin/update/download')
   button.textContent = text
   button.disabled = false
   await showModal({ mode: 'alert', text: message })
   if (code === 0) {
-    location.href = '/'
+    location.href = data?.review ? '/admin/update' : '/'
   }
 }
 

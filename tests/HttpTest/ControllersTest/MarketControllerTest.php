@@ -16,6 +16,15 @@ class MarketControllerTest extends TestCase
         $this->actingAs(User::factory()->superAdmin()->create());
     }
 
+    public function testConfiguredRegistryUsesRequestedLanguage()
+    {
+        \App\Services\Facades\Option::set('plugins_registry', 'https://plugins.example.test/registry_{lang}.json');
+        $this->actingAs(User::factory()->superAdmin()->create(['locale' => 'zh_CN']));
+        Http::fake(['https://plugins.example.test/registry_zh_CN.json' => Http::response(['version' => 1, 'packages' => []])]);
+        $this->getJson('/admin/plugins/market/list?lang=zh_CN')->assertOk()->assertExactJson([]);
+        Http::assertSent(fn ($request) => $request->url() === 'https://plugins.example.test/registry_zh_CN.json');
+    }
+
     public function testDownload()
     {
         $registryUrl = str_replace('{lang}', 'en', config('plugins.registry'));

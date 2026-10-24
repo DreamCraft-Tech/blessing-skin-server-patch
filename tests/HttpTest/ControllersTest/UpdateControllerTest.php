@@ -113,7 +113,7 @@ class UpdateControllerTest extends TestCase
         $response = $this->get('/admin/update')->assertOk()->assertSee('custom-file-input')->assertSee('选择文件');
         $html = $response->getContent();
         $previous = -1;
-        foreach (['6.0.6_patch', '6.0.5_patch', '6.0.4_patch', '6.0.3_patch'] as $index => $version) {
+        foreach (['6.0.7_patch', '6.0.6_patch', '6.0.5_patch', '6.0.4_patch', '6.0.3_patch'] as $index => $version) {
             $position = strpos($html, '· '.$version);
             $this->assertNotFalse($position);
             $this->assertGreaterThan($previous, $position);
@@ -121,6 +121,45 @@ class UpdateControllerTest extends TestCase
             $response->assertSee('class="card-body collapse" id="version-changelog-'.($index + 1).'"', false);
         }
         $this->assertStringNotContainsString('class="card-body collapse show"', $html);
+    }
+
+    public function testConfiguredUpdateSourceIsUsed()
+    {
+        \App\Services\Facades\Option::set('update_source', 'https://updates.example.test/update.json');
+        Http::fake(['https://updates.example.test/update.json' => Http::response($this->fakeUpdateInfo('8.9.3'))]);
+        $this->get('/admin/update')->assertOk()->assertSee('8.9.3');
+        Http::assertSent(fn ($request) => $request->url() === 'https://updates.example.test/update.json');
+    }
+
+    public function testFullRuntimeDownloadRequiresMatchingHashAndReview()
+    {
+        $pending = ['id' => str_repeat('a', 32), 'version' => '8.9.3'];
+        $this->mock(\App\Services\UpdatePackage::class, fn ($mock) => $mock->shouldReceive('prepare')->once()->andReturn($pending));
+        Http::fake(function ($request, $options) {
+            if ($request->url() === 'https://whatever.test/8.9.3/update.zip') {
+                file_put_contents($options['sink'], 'runtime');
+
+                return Http::response('runtime');
+            }
+
+            return Http::response($this->fakeUpdateInfo('8.9.3', ['package' => 'full', 'sha256' => hash('sha256', 'runtime')]));
+        });
+        $this->postJson('/admin/update/download')->assertJson(['code' => 0, 'data' => ['review' => true]])->assertSessionHas('system_update_package', $pending);
+    }
+
+    public function testFullRuntimeRejectsHashMismatchBeforePreparation()
+    {
+        $this->mock(\App\Services\UpdatePackage::class, fn ($mock) => $mock->shouldNotReceive('prepare'));
+        Http::fake(function ($request, $options) {
+            if ($request->url() === 'https://whatever.test/8.9.3/update.zip') {
+                file_put_contents($options['sink'], 'changed');
+
+                return Http::response('changed');
+            }
+
+            return Http::response($this->fakeUpdateInfo('8.9.3', ['package' => 'full', 'sha256' => hash('sha256', 'runtime')]));
+        });
+        $this->postJson('/admin/update/download')->assertJson(['code' => 1])->assertSessionMissing('system_update_package');
     }
 
     protected function fakeUpdateInfo(string $version, $extra = [])
