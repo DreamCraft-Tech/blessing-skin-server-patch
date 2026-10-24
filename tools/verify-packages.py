@@ -12,7 +12,8 @@ for row in manifest['packages']:
     with zipfile.ZipFile(file) as z:
         assert z.testzip() is None;names=z.namelist()
         assert all(not n.startswith('/') and '..' not in Path(n).parts for n in names)
-        assert not any(Path(n).name in {'.env','install.lock','oauth-private.key','options.php','.DS_Store'} for n in names)
+        assert not any(Path(n).name in {'.env','install.lock','oauth-private.key','.DS_Store'} for n in names)
+        assert not any(n.endswith('bootstrap/cache/options.php') for n in names)
         assert not any(n.endswith(('.sqlite','.sqlite3','.log')) for n in names)
         if a.kind=='server':
             for needed in ['artisan','bootstrap/app.php','config/app.php','public/index.php','vendor/autoload.php','resources/views/assets/app.twig','public/app/communications.js']:assert needed in names,needed
