@@ -1,0 +1,13 @@
+{
+  "version": "6.0.10_patch",
+  "commit": "f268cf76c48de3d3ab9d0c1de21dfe96a3528b90",
+  "php": "8.5",
+  "packages": [
+    {
+      "name": "blessing-skin-server",
+      "version": "6.0.10_patch",
+      "filename": "blessing-skin-server_6.0.10_patch_php85.zip",
+      "sha256": "bb94f83718f3fca3737a04b2097e747720ebd5966979cf042dbbba5434da3e73"
+    }
+  ]
+}
