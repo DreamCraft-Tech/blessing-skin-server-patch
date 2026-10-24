@@ -210,11 +210,21 @@ class OptionsController extends Controller
             $form->checkbox('recaptcha_invisible')->label();
         })->handle();
 
+        if (request()->isMethod('POST') && request('option') === 'updates') {
+            request()->validate(['update_source_preset' => 'nullable|in:official,patch']);
+            if ($preset = request('update_source_preset')) {
+                request()->merge(config('updates.sources.'.$preset));
+            }
+        }
+
         $updates = Option::form('updates', '更新与插件仓库', function ($form) {
             $form->text('update_source', '主站更新检测 URL')->placeholder(config('app.update_source'));
-            $form->text('plugins_registry', '插件仓库 URL')->placeholder(config('plugins.registry'))
-                ->description('语言地址可使用 {lang}，由系统选择 en 或 zh_CN。');
-        })->type('danger')->before(function () {
+            $form->text('plugins_registry', '插件仓库 URL')->placeholder(config('plugins.registry'));
+        })->type('danger')->addMessage(
+            '<p class="text-danger font-weight-bold mb-0">请注意，修改更新 URL 可能导致您的 Blessing Skin 被恶意代码注入，进而影响您的数据、服务器或内网资产安全。<br>我们无法 100% 保证第三方更新源的安全，修改这里之前<strong>请一定要知道你在做什么！</strong></p>'.
+            '<div class="mt-3 d-flex flex-wrap"><button type="submit" name="update_source_preset" value="official" class="btn btn-default mr-2 mb-2">切换到 bs-community 官方源</button><button type="submit" name="update_source_preset" value="patch" class="btn btn-primary mb-2">切换到 DreamCraft-Tech patch 源</button></div>',
+            'danger'
+        )->before(function () {
             request()->validate([
                 'update_source' => 'nullable|url:http,https|max:2048',
                 'plugins_registry' => ['nullable', 'string', 'max:2048', function ($attribute, $value, $fail) {

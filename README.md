@@ -1,6 +1,6 @@
 # DreamCraft Blessing Skin Server Patch
 
-基于 Blessing Skin Server 6.0.2 开发快照 `52f6fef` 的 PHP 8.5 / Laravel 10 补丁分支，当前版本 **6.0.6_patch**。
+基于 Blessing Skin Server 6.0.2 开发快照 `52f6fef` 的 PHP 8.5 / Laravel 10 补丁分支，当前版本 **6.0.8_patch**。
 
 ## 自动检查与发布
 

@@ -1,6 +1,6 @@
 # DreamCraft Blessing Skin Server Patch
 
-基于 Blessing Skin Server 6.0.2 开发快照 `52f6fef` 的 PHP 8.5 / Laravel 10 补丁分支，当前版本 **6.0.6_patch**。
+基于 Blessing Skin Server 6.0.2 开发快照 `52f6fef` 的 PHP 8.5 / Laravel 10 补丁分支，当前版本 **6.0.8_patch**。
 
 ## 修改历史
 
@@ -30,4 +30,3 @@ python3 tools/build-php85.py --output /absolute/path/to/new-output
 可通过 --php、--composer、--yarn 指定可执行文件路径。构建脚本安装锁定依赖、构建前端、复制通讯编辑器资源，并生成 PHP 8.5 ZIP 和 SHA256SUMS。使用已安装依赖时可加 --skip-install。
 
 更新说明见 PATCH-INSTALL.md，各版本更新内容见 CHANGELOG-PATCH.md。原项目作者与 MIT 许可保留在下方和 LICENSE 中。
-
