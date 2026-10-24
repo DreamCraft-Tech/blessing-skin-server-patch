@@ -32,8 +32,7 @@ class UpdateController extends Controller
             'package' => session('system_update_package'),
             'patch_notes' => config('patch.notes', []),
             'patch_date' => config('patch.date'),
-            'upload_limit' => ini_get('upload_max_filesize'),
-            'post_limit' => ini_get('post_max_size'),
+            'upload_limits' => app(\App\Services\UploadLimits::class)->current(),
         ]);
     }
 
@@ -66,7 +65,8 @@ class UpdateController extends Controller
 
     public function upload(Request $request, UpdatePackage $packages)
     {
-        $request->validate(['package' => 'required|file|max:262144']);
+        $max = (int) ceil(app(\App\Services\UploadLimits::class)->applicationBytes() / 1024);
+        $request->validate(['package' => 'required|file|max:'.$max]);
         try {
             $file = $request->file('package');
             if (strtolower($file->getClientOriginalExtension()) !== 'zip') {

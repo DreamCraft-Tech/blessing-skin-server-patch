@@ -10,6 +10,7 @@
 
 $menu['user'] = [
     ['title' => 'general.dashboard',      'link' => 'user',         'icon' => 'fa-tachometer-alt'],
+    ['title' => '站内信', 'link' => 'user/inbox', 'icon' => 'fa-envelope'],
     ['title' => 'general.my-closet',      'link' => 'user/closet',  'icon' => 'fa-star'],
     ['title' => 'general.player-manage',  'link' => 'user/player',  'icon' => 'fa-users'],
     ['title' => 'general.my-reports',     'link' => 'user/reports', 'icon' => 'fa-flag'],
@@ -25,6 +26,7 @@ $menu['user'] = [
 
 $menu['admin'] = [
     ['title' => 'general.dashboard',      'link' => 'admin',                'icon' => 'fa-tachometer-alt'],
+    ['title' => '通知与公告', 'link' => 'admin/communications', 'icon' => 'fa-bullhorn'],
     ['title' => 'general.user-manage',    'link' => 'admin/users',          'icon' => 'fa-users'],
     ['title' => 'general.player-manage',  'link' => 'admin/players',        'icon' => 'fa-gamepad'],
     ['title' => 'general.report-manage',  'link' => 'admin/reports',        'icon' => 'fa-flag'],

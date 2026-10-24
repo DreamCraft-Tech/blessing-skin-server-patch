@@ -26,7 +26,6 @@ class AdminController extends Controller
                 [
                     [
                         'admin.widgets.dashboard.usage',
-                        'admin.widgets.dashboard.notification',
                     ],
                     ['admin.widgets.dashboard.chart'],
                 ],

@@ -1,44 +1,35 @@
-# 6.0.3_patch 安装与更新
+# 6.0.4_patch 安装与更新
 
-运行环境：PHP 8.5、MariaDB、1Panel OpenResty。版本基于 Blessing Skin Server 6.0.2（52f6fef），更新内容见 CHANGELOG-PATCH.md。
+运行环境：PHP 8.5、MariaDB、1Panel OpenResty。完整运行包包含 Composer 依赖和已构建的前端资源，网站运行目录为 public/。
 
-## 首次部署本补丁
+## 更新现有网站
 
-将 `blessing-skin-server_6.0.3_patch_overlay.zip` 解压到网站项目根目录，按压缩包相对路径覆盖程序文件。在网站 PHP 运行环境、项目根目录执行：
+已安装 6.0.3_patch 的站点：在“检查更新”的 ZIP 更新区域上传 blessing-skin-server_6.0.4_patch_php85.zip，核对版本后确认安装。
+
+手动更新：将 overlay.zip 解压到网站项目根目录覆盖程序文件，在网站 PHP 运行环境、项目根目录执行：
 
 ```sh
 php artisan config:clear
 php artisan route:clear
+php artisan migrate --force
 php artisan view:clear
 php artisan twig:clean
 ```
 
-OPcache 关闭时间戳检查时，重启 PHP 运行环境。访问网站后，版本检查触发现有 `update` 命令，执行数据库迁移、写入版本和刷新缓存。
+随后重启 PHP 运行环境以刷新 OPcache。ZIP 更新沿用站点的 .env、storage、plugins 和上传资源；安装备份位于 storage/app/system-updates/。
 
-新建站点使用 `blessing-skin-server_6.0.3_patch_php85.zip` 完整运行包，OpenResty 运行目录为 `public/`。
+## 通知与公告
 
-## 检查更新页面
+管理菜单位于“仪表板”和“用户管理”之间。发布位置可选站点公告、站内信或两者。编辑器提供标题、文本、提示框、折叠卡片和分隔线，可拖动排序、调整属性并实时预览；源码模式支持 Markdown 和 HTML，并可导入为可视化组件。
 
-超级管理员在“检查更新”页面上传完整 ZIP 运行包。页面显示目标版本、文件数和 SHA-256，确认后安装。ZIP 可直接包含程序文件，或包含一层外目录；运行包包含 `vendor/autoload.php` 与已编译的 `public/app/` 资源。ZIP 安装支持同版本重装和更高版本更新。
+公告显示在用户仪表盘，站内信进入用户消息列表。支持草稿、编辑、已读统计、撤回与重新发布；撤回前显示确认弹窗。编辑已有站内信保留原收件人和已读状态，重新发布生成新一轮投递。编辑页面顶部和底部均提供返回列表。“当前版本更新日志”采用折叠卡片展示。
 
-左侧提供在线更新和 ZIP 更新；右侧“注意事项”下显示“当前版本更新日志”。日志内容由 `config/patch.php` 定义。
+升级迁移将原站点公告及历史站内信导入管理中心，保留历史消息的已读状态和时间。数据表使用 InnoDB。
 
-ZIP 安装按程序目录覆盖：`app`、`bootstrap`、`config`、`database`、`public`、`resources`、`routes`、`vendor` 及根目录程序清单文件。`.env`、`storage`、`plugins`、`bootstrap/cache` 和 `public/storage`、`public/uploads`、`public/textures`、`public/plugins` 沿用站点现有内容。
+## 上传上限
 
-任务与文件备份位于 `storage/app/system-updates/<任务编号>/`，其中 `backup/` 保存被覆盖的原程序文件，`installed.json` 记录完成时间。校验任务有效期为一小时；安装写入失败时恢复本次已替换的程序文件。数据库迁移沿用主系统升级命令。
+ZIP 更新页面读取当前 PHP 的 upload_max_filesize、post_max_size，并结合应用上限显示可上传大小。应用上限由 .env 的 SYSTEM_UPDATE_MAX_MB 指定，默认 256 MiB。OpenResty 的 client_max_body_size 在 1Panel 网站配置中设置。
 
-## 上传与执行参数
+## 文件
 
-应用 ZIP 上限为 256 MiB，解压内容上限 1 GiB，条目上限 30000。PHP 与 OpenResty 的请求限制共同决定实际上传大小。可在 1Panel 按运行包大小设置，例如：
-
-```ini
-upload_max_filesize=256M
-post_max_size=260M
-max_execution_time=300
-```
-
-OpenResty 对应设置 `client_max_body_size 260m;`。PHP 进程需要程序目录和 `storage/app/system-updates` 的写权限。
-
-## 验证
-
-验证包包含 PHP、Twig、JavaScript 语法检查与 PHPUnit 结果；覆盖管理员界面、在线更新、ZIP 上传、PHP 与版本校验、路径检查、站点数据保留、程序文件备份及写入失败回退。
+php85.zip 为完整运行包，overlay.zip 为程序覆盖包。verification.zip 包含测试、语法检查和版本信息，SHA256SUMS 提供文件校验值。版本更新内容见运行包内 CHANGELOG-PATCH.md。

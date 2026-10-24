@@ -51,6 +51,8 @@ Route::prefix('user')
     ->group(function () {
         Route::get('', 'UserController@index')->name('home');
         Route::post('notifications/{id}', 'NotificationsController@read')->name('notification.read');
+        Route::get('inbox', 'CommunicationsController@inbox')->name('inbox');
+        Route::get('inbox/{id}', 'CommunicationsController@message')->name('inbox.message');
         Route::get('score-info', 'UserController@scoreInfo')->name('score');
         Route::post('sign', 'UserController@sign')->name('sign');
 
@@ -123,6 +125,12 @@ Route::prefix('admin')
     ->group(function () {
         Route::get('', 'AdminController@index')->name('view');
         Route::get('chart', 'AdminController@chartData')->name('chart');
+        Route::get('communications', 'CommunicationsController@index')->name('communications.index');
+        Route::post('communications/import', 'CommunicationsController@importSource')->middleware('throttle:30,1')->name('communications.import');
+        Route::post('communications/preview', 'CommunicationsController@preview')->middleware('throttle:90,1')->name('communications.preview');
+        Route::post('communications', 'CommunicationsController@store')->name('communications.store');
+        Route::put('communications/{communication}', 'CommunicationsController@update')->name('communications.update');
+        Route::post('communications/{communication}/withdraw', 'CommunicationsController@withdraw')->name('communications.withdraw');
         Route::post('notifications/send', 'NotificationsController@send')->name('notification.send');
 
         Route::any('customize', 'OptionsController@customize')->name('customize');

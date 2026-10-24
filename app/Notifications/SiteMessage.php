@@ -16,10 +16,16 @@ class SiteMessage extends Notification implements ShouldQueue
 
     public $content;
 
-    public function __construct(string $title, $content = '')
+    public ?int $communicationId = null;
+
+    public ?string $deliveryToken = null;
+
+    public function __construct(string $title, $content = '', ?int $communicationId = null, ?string $deliveryToken = null)
     {
         $this->title = $title;
         $this->content = $content;
+        $this->communicationId = $communicationId;
+        $this->deliveryToken = $deliveryToken;
     }
 
     /**
@@ -39,7 +45,7 @@ class SiteMessage extends Notification implements ShouldQueue
      */
     public function toArray($notifiable)
     {
-        return [
+        return ($this->communicationId ? ['communication_id' => $this->communicationId, 'delivery_token'=>$this->deliveryToken, 'format' => 'html'] : []) + [
             'title' => $this->title,
             'content' => $this->content,
         ];

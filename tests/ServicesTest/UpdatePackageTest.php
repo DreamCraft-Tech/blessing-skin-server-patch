@@ -16,7 +16,7 @@ class UpdatePackageTest extends TestCase
         $files = array_merge([
             'composer.json' => json_encode(['name' => 'bs-community/blessing-skin-server', 'require' => ['php' => '^8.1']]),
             'artisan' => 'new artisan', 'bootstrap/app.php' => 'new bootstrap',
-            'config/app.php' => "<?php return ['version'=>'6.0.4_patch'];",
+            'config/app.php' => "<?php return ['version'=>'6.0.5_patch'];",
             'public/index.php' => 'new index', 'vendor/autoload.php' => 'new autoload',
             'resources/views/assets/app.twig' => 'compiled entry', 'public/app/app.js' => 'compiled js',
         ], $extra);
@@ -71,7 +71,7 @@ class UpdatePackageTest extends TestCase
         file_put_contents($service->destination.'/storage/data', 'existing texture');
         file_put_contents($service->destination.'/artisan', 'old artisan');
         $info = $this->prepare($service, $this->archive(['.env' => 'replacement', 'storage/data' => 'replacement', 'plugins/custom/bootstrap.php' => 'replacement', 'public/plugins/custom.js' => 'replacement'], 'release/'));
-        $this->assertSame('6.0.4_patch', $info['version']);
+        $this->assertSame('6.0.5_patch', $info['version']);
         $this->assertCount(8, $info['files']);
         $service->install($info['id']);
         $this->assertSame('new artisan', file_get_contents($service->destination.'/artisan'));

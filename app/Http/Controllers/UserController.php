@@ -67,7 +67,7 @@ class UserController extends Controller
                 'player' => option('score_per_player'),
                 'closet' => option('score_per_closet_item'),
             ],
-            'announcement' => $converter->convertToHtml(option_localized('announcement')),
+            'announcement' => app(\App\Services\Communications::class)->announcements(),
             'grid' => $grid,
             'extra' => ['unverified' => option('require_verification') && !$user->verified],
         ]);

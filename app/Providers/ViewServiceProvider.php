@@ -30,10 +30,10 @@ class ViewServiceProvider extends ServiceProvider
         View::composer('shared.head', Composers\HeadComposer::class);
 
         View::composer('shared.notifications', function ($view) {
-            $notifications = auth()->user()->unreadNotifications->map(function ($notification) {
+            $notifications = app(\App\Services\Communications::class)->inboxQuery(auth()->user())->whereNull('read_at')->limit(20)->get()->map(function ($notification) {
                 return [
                     'id' => $notification->id,
-                    'title' => $notification->data['title'],
+                    'title' => app(\App\Services\Communications::class)->title($notification),
                 ];
             });
             $view->with(['notifications' => $notifications]);

@@ -20,6 +20,8 @@ class NotificationsController extends Controller
             'content' => 'string|nullable',
         ]);
 
+        $communication = \App\Models\Communication::create(['author_id' => $request->user()->uid, 'title' => $data['title'], 'kind' => 'message', 'status' => 'published', 'editor' => 'source', 'source' => $data['content'],
+            'audience' => array_intersect_key($data, array_flip(['receiver', 'uid', 'email'])), 'published_at' => now(), 'delivery_token'=>bin2hex(random_bytes(16))]);
         $notification = new Notifications\SiteMessage($data['title'], $data['content']);
 
         switch ($data['receiver']) {
@@ -36,6 +38,8 @@ class NotificationsController extends Controller
                 $users = User::where('email', $data['email'])->get();
                 break;
         }
+        $notification->communicationId = $communication->id;
+        $notification->deliveryToken = $communication->delivery_token;
         Notification::send($users, $notification);
 
         session(['sentResult' => trans('admin.notifications.send.success')]);
@@ -45,11 +49,10 @@ class NotificationsController extends Controller
 
     public function all()
     {
-        return auth()->user()
-            ->unreadNotifications
+        return app(\App\Services\Communications::class)->inboxQuery(auth()->user())->whereNull('read_at')->get()
             ->map(fn ($notification) => [
                 'id' => $notification->id,
-                'title' => $notification->data['title'],
+                'title' => app(\App\Services\Communications::class)->title($notification),
             ]);
     }
 
@@ -59,13 +62,14 @@ class NotificationsController extends Controller
             ->user()
             ->unreadNotifications
             ->first(fn ($notification) => $notification->id === $id);
+        abort_unless($notification && app(\App\Services\Communications::class)->visible($notification), 404);
         $notification->markAsRead();
 
         $converter = new GithubFlavoredMarkdownConverter();
 
         return [
-            'title' => $notification->data['title'],
-            'content' => $converter->convertToHtml($notification->data['content'] ?? '')->getContent(),
+            'title' => app(\App\Services\Communications::class)->title($notification),
+            'content' => app(\App\Services\Communications::class)->content($notification),
             'time' => $notification->created_at->toDateTimeString(),
         ];
     }

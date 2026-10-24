@@ -80,11 +80,12 @@
         <div class="card-header"><h3 class="card-title">ZIP 运行包更新</h3></div>
         <div class="card-body">
           <p>上传完整的 Blessing Skin 运行包，校验后安装。支持直接包含程序文件，或外层包含一个目录的 ZIP。</p>
-          <p class="text-muted">运行包包含 <code>vendor/</code> 和编译后的前端资源。上传上限：PHP 文件 {{ upload_limit }}、请求 {{ post_limit }}，应用 256 MiB。</p>
+          <p class="text-muted">运行包包含 <code>vendor/</code> 和编译后的前端资源。当前 PHP / 应用上传上限：<strong>{{ upload_limits.effective }}</strong>。<br>PHP 文件限制：{{ upload_limits.php_upload }}；请求限制：{{ upload_limits.php_post }}；应用配置：{{ upload_limits.application }}。<br>OpenResty 请求限制由站点配置决定。</p>
+          {% if not upload_limits.enabled %}<p class="text-warning">PHP 文件上传已关闭。</p>{% endif %}
           <form method="post" action="{{ route('admin.update.upload') }}" enctype="multipart/form-data" data-system-update-form data-progress="正在上传并校验运行包…">
             {{ csrf_field() }}
-            <div class="form-group"><label for="system-update-package">选择 ZIP 运行包</label><input id="system-update-package" class="form-control-file" type="file" name="package" accept=".zip,application/zip" required></div>
-            <button type="submit" class="btn btn-primary">上传并校验</button>
+            <div class="form-group"><label for="system-update-package">选择 ZIP 运行包</label><input id="system-update-package" class="form-control-file" type="file" name="package" accept=".zip,application/zip" required {{ not upload_limits.enabled ? 'disabled' : '' }}></div>
+            <button type="submit" class="btn btn-primary" {{ not upload_limits.enabled ? 'disabled' : '' }}>上传并校验</button>
             <p class="mt-2 mb-0" role="status" data-update-progress hidden></p>
           </form>
           {% if package %}
@@ -118,8 +119,12 @@
         </div>
       </div>
       <div class="card card-outline card-info">
-        <div class="card-header"><h3 class="card-title">当前版本更新日志</h3></div>
-        <div class="card-body">
+        <div class="card-header p-0">
+          <button type="button" class="btn btn-block text-left font-weight-bold collapsed p-3" data-toggle="collapse" data-target="#current-version-changelog" aria-expanded="false" aria-controls="current-version-changelog">
+            当前版本更新日志 <span class="float-right"><i class="fas fa-angle-down" aria-hidden="true"></i></span>
+          </button>
+        </div>
+        <div class="card-body collapse" id="current-version-changelog">
           <p><strong>{{ info.current }}</strong> <span class="text-muted">{{ patch_date }}</span></p>
           <ul class="pl-3 mb-0">{% for note in patch_notes %}<li class="mb-2">{{ note }}</li>{% else %}<li>当前版本已安装。</li>{% endfor %}</ul>
         </div>

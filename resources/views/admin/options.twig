@@ -8,7 +8,7 @@
       {{ forms.general.render()|raw }}
     </div>
     <div class="col-md-6">
-      {{ forms.announ.render()|raw }}
+      <div class="card card-outline card-info"><div class="card-body"><a href="{{ route('admin.communications.index') }}">前往通知与公告</a></div></div>
       {{ forms.meta.render()|raw }}
       {{ forms.recaptcha.render()|raw }}
     </div>

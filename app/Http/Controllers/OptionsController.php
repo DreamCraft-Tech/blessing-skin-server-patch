@@ -198,12 +198,6 @@ class OptionsController extends Controller
             Option::set('content_policy_'.config('app.locale'), request('content_policy'));
         });
 
-        $announ = Option::form('announ', OptionForm::AUTO_DETECT, function ($form) {
-            $form->textarea('announcement')->rows(10)->description();
-        })->renderWithoutTable()->handle(function () {
-            Option::set('announcement_'.config('app.locale'), request('announcement'));
-        });
-
         $meta = Option::form('meta', OptionForm::AUTO_DETECT, function ($form) {
             $form->text('meta_keywords')->hint();
             $form->text('meta_description')->hint();
@@ -217,7 +211,7 @@ class OptionsController extends Controller
         })->handle();
 
         return view('admin.options')
-            ->with('forms', compact('general', 'announ', 'meta', 'recaptcha'));
+            ->with('forms', compact('general', 'meta', 'recaptcha'));
     }
 
     public function resource(Request $request)
