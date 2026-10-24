@@ -33,7 +33,7 @@ return [
     */
     'registry' => env(
         'PLUGINS_REGISTRY',
-        'https://github.com/DreamCraft-Tech/blessing-skin-plugins-patch/releases/latest/download/registry_{lang}.json'
+        'https://plugin.blessing.dreamcraft.eu.org/registry_{lang}.json'
     ),
 
     /*

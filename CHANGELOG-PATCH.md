@@ -1,3 +1,9 @@
+# 6.0.10_patch · 2026-10-25
+
+- 两仓库将正式发布附件同步到各自 web-publish 分支，并自动部署 GitHub Pages。
+- 主站更新源使用 skin.blessing.dreamcraft.eu.org，插件仓库使用 plugin.blessing.dreamcraft.eu.org；JSON 内下载地址使用同一 Pages 域名。
+- 保留版本下载目录与原始 SHA-256，第三方修补源切换按钮采用新地址。
+
 # 6.0.9_patch · 2026-10-25
 
 - 更新源保存和切换同时同步 .env 的 UPDATE_SOURCE、PLUGINS_REGISTRY，刷新 Laravel 配置缓存。

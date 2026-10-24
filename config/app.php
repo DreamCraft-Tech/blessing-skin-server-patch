@@ -13,7 +13,7 @@ return [
     |
     */
 
-    'version' => '6.0.9_patch',
+    'version' => '6.0.10_patch',
 
     /*
     |--------------------------------------------------------------------------
@@ -26,7 +26,7 @@ return [
 
     'update_source' => env(
         'UPDATE_SOURCE',
-        'https://github.com/DreamCraft-Tech/blessing-skin-server-patch/releases/latest/download/update.json'
+        'https://skin.blessing.dreamcraft.eu.org/update.json'
     ),
 
     /*

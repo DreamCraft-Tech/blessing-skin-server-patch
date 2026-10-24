@@ -9,8 +9,8 @@ return [
             'plugins_registry' => 'https://bs-plugins.littleservice.cn/registry_{lang}.json',
         ],
         'patch' => [
-            'update_source' => 'https://github.com/DreamCraft-Tech/blessing-skin-server-patch/releases/latest/download/update.json',
-            'plugins_registry' => 'https://github.com/DreamCraft-Tech/blessing-skin-plugins-patch/releases/latest/download/registry_{lang}.json',
+            'update_source' => 'https://skin.blessing.dreamcraft.eu.org/update.json',
+            'plugins_registry' => 'https://plugin.blessing.dreamcraft.eu.org/registry_{lang}.json',
         ],
     ],
 ];

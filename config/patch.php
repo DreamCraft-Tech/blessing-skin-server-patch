@@ -1,6 +1,10 @@
 <?php
 
 return ['releases' => [
+    ['version' => '6.0.10_patch', 'date' => '2026-10-25', 'notes' => [
+        '主站与插件产物自动发布到各自 web-publish 分支，并通过 GitHub Pages 提供更新索引和下载。',
+        '第三方修补源默认使用独立的主站及插件域名。',
+    ]],
     ['version' => '6.0.9_patch', 'date' => '2026-10-25', 'notes' => [
         '更新源保存及预设切换同步写入 .env 的 UPDATE_SOURCE 和 PLUGINS_REGISTRY，并刷新配置缓存。',
         '第三方源切换按钮使用“第三方修补源”名称。',
