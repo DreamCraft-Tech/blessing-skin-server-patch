@@ -73,7 +73,7 @@ class UpdateControllerTest extends TestCase
     {
         $this->actingAs(User::factory()->superAdmin()->create(['locale' => 'zh_CN']));
         Http::fake(fn () => throw new \Illuminate\Http\Client\ConnectionException('offline'));
-        $response = $this->get('/admin/update')->assertOk()->assertSee('ZIP 运行包更新')->assertSee('当前版本更新日志')->assertSee('6.0.3_patch');
+        $response = $this->get('/admin/update')->assertOk()->assertSee('ZIP 运行包更新')->assertSee('当前版本更新日志')->assertSee('6.0.6_patch');
         if ($directory = getenv('UPDATE_UI_PREVIEW_DIR')) {
             file_put_contents($directory.'/update.html', $response->getContent());
         }
@@ -92,11 +92,35 @@ class UpdateControllerTest extends TestCase
 
     public function testUploadShowsPackageReviewBeforeInstallation()
     {
-        $info = ['id' => str_repeat('a', 32), 'version' => '6.0.4_patch', 'sha256' => str_repeat('b', 64), 'count' => 100, 'files' => [], 'created_at' => time()];
+        $info = ['id' => str_repeat('a', 32), 'version' => '6.0.6_patch', 'sha256' => str_repeat('b', 64), 'count' => 100, 'files' => [], 'created_at' => time()];
         $this->mock(\App\Services\UpdatePackage::class, fn ($mock) => $mock->shouldReceive('prepare')->once()->andReturn($info));
         $this->post('/admin/update/upload', ['package' => \Illuminate\Http\UploadedFile::fake()->create('runtime.zip', 100, 'application/zip')])->assertRedirect('/admin/update')->assertSessionHas('system_update_package', $info);
         Http::fake([config('app.update_source') => Http::response('', 404)]);
-        $this->get('/admin/update')->assertOk()->assertSee('确认安装 6.0.4_patch')->assertSee(str_repeat('b', 64));
+        $this->get('/admin/update')->assertOk()->assertSee('确认安装 6.0.6_patch')->assertSee(str_repeat('b', 64));
+    }
+
+    public function testUploadLimitUsesCurrentRuntimeAndApplicationConfiguration()
+    {
+        config(['updates.max_upload_mb' => 1]);
+        Http::fake([config('app.update_source') => Http::response('', 404)]);
+        $this->get('/admin/update')->assertOk()->assertSee('1 MiB')->assertSee((string) ini_get('upload_max_filesize'))->assertSee((string) ini_get('post_max_size'));
+        $this->post('/admin/update/upload', ['package' => \Illuminate\Http\UploadedFile::fake()->create('runtime.zip', 1536, 'application/zip')])->assertSessionHasErrors('package');
+    }
+
+    public function testVersionLogsAreNewestFirstAndCollapsed()
+    {
+        Http::fake([config('app.update_source') => Http::response('', 404)]);
+        $response = $this->get('/admin/update')->assertOk()->assertSee('custom-file-input')->assertSee('选择文件');
+        $html = $response->getContent();
+        $previous = -1;
+        foreach (['6.0.6_patch', '6.0.5_patch', '6.0.4_patch', '6.0.3_patch'] as $index => $version) {
+            $position = strpos($html, '· '.$version);
+            $this->assertNotFalse($position);
+            $this->assertGreaterThan($previous, $position);
+            $previous = $position;
+            $response->assertSee('class="card-body collapse" id="version-changelog-'.($index + 1).'"', false);
+        }
+        $this->assertStringNotContainsString('class="card-body collapse show"', $html);
     }
 
     protected function fakeUpdateInfo(string $version, $extra = [])

@@ -53,7 +53,7 @@ class UserControllerTest extends TestCase
             $html = $this->actingAs($user)->get('/user')->assertOk()->getContent();
             $this->assertSame(1, preg_match('/<aside\b.*?<\/aside>/s', $html, $sidebar));
             $menu = 'href="'.url('admin').'"';
-            $editor = 'href="'.url('/admin/options').'"';
+            $editor = 'href="'.route('admin.communications.index', ['announcement' => 1]).'"';
             if ($permission >= User::ADMIN) {
                 $this->assertStringContainsString($menu, $sidebar[0]);
                 $this->assertStringContainsString($editor, $html);

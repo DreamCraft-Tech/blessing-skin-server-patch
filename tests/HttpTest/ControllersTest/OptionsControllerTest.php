@@ -3,8 +3,8 @@
 namespace Tests;
 
 use App\Models\User;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Cache;
 use Mockery;
 
 class OptionsControllerTest extends BrowserKitTestCase
@@ -139,10 +139,7 @@ class OptionsControllerTest extends BrowserKitTestCase
             ->press('submit_general');
         $this->assertEquals('http://blessing.skin', option('site_url'));
 
-        $this->visit('/admin/options')
-            ->type('announcement', 'announcement')
-            ->press('submit_announ');
-        $this->assertEquals('announcement', option_localized('announcement'));
+        $this->visit('/admin/communications')->see('通知与公告')->see('发布与草稿记录');
 
         $this->visit('/admin/options')
             ->type('kw', 'meta_keywords')

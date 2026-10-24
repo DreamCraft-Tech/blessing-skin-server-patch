@@ -27,3 +27,11 @@ storage/options.php
 resources/views/overrides
 .DS_Store
 */.DS_Store
+# Local build output and preview data
+work/
+build-php85/
+public/_wecom-preview/
+*.log
+
+__pycache__/
+*.pyc
