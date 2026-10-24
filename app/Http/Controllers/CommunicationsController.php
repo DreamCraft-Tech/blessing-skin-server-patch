@@ -10,22 +10,29 @@ use Illuminate\Support\Facades\DB;
 
 class CommunicationsController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request, Communications $service)
     {
         $editing = $request->filled('edit') ? Communication::findOrFail($request->integer('edit')) : null;
-        $rows = Communication::orderByDesc('id')->paginate(15)->withQueryString();
+        if ($request->boolean('announcement')) {
+            $editing = $service->currentAnnouncement();
+            if ($editing && $editing->kind === 'both') {
+                $announcementSeed = array_merge($editing->toArray(), ['kind' => 'announcement']);
+                $editing = null;
+            }
+        }
+        $rows = Communication::whereIn('kind', ['message', 'both'])->orderByDesc('id')->paginate(15)->onEachSide(1)->withQueryString();
         foreach ($rows as $row) {
             $row->delivery_count = DB::table('notifications')->where('data->communication_id', $row->id)->count();
             $row->read_count = DB::table('notifications')->where('data->communication_id', $row->id)->whereNotNull('read_at')->count();
         }
-        $initial = $editing?->toArray() ?? ['title' => '', 'kind' => 'announcement', 'editor' => 'blocks', 'blocks' => [], 'source' => '', 'locale' => '', 'audience' => ['receiver' => 'all']];
+        $initial = $editing?->toArray() ?? $announcementSeed ?? ['title' => ($request->boolean('announcement') ? '站点公告' : ''), 'kind' => ($request->boolean('announcement') ? 'announcement' : 'message'), 'editor' => 'blocks', 'blocks' => [], 'source' => '', 'locale' => '', 'audience' => ['receiver' => 'all']];
         foreach (['title', 'kind', 'editor', 'source', 'locale', 'blocks'] as $key) {
             $initial[$key] = $request->old($key, $initial[$key] ?? null);
         }
         $initial['audience'] = ['receiver' => $request->old('receiver', $initial['audience']['receiver'] ?? 'all'), 'uid' => $request->old('uid', $initial['audience']['uid'] ?? null), 'email' => $request->old('email', $initial['audience']['email'] ?? null)];
 
-        return view('admin.communications', ['messages' => $rows, 'editing' => $editing,
-            'editor_data' => $initial, 'editor_open' => (bool) $editing || $request->boolean('new') || $request->session()->hasOldInput()]);
+        return view('admin.communications', ['messages' => $rows, 'pagination' => \Illuminate\Pagination\UrlWindow::make($rows), 'editing' => $editing,
+            'editor_data' => $initial, 'editor_open' => (bool) $editing || $request->boolean('announcement') || $request->boolean('new') || $request->session()->hasOldInput()]);
     }
 
     private function validateContent(Request $request): array
@@ -56,7 +63,7 @@ class CommunicationsController extends Controller
         $data = $this->validateContent($request);
         $message = $service->save($data, null, (int) $request->user()->uid);
 
-        return redirect()->route('admin.communications.index', ['edit' => $message->id])->with('communication_notice', $message->status === 'published' ? '内容已发布。' : '草稿已保存。');
+        return redirect()->route('admin.communications.index', $message->kind === 'announcement' ? ['announcement' => 1] : ['edit' => $message->id])->with('communication_notice', $message->status === 'published' ? '内容已发布。' : '草稿已保存。');
     }
 
     public function update(Request $request, Communication $communication, Communications $service)
@@ -66,9 +73,9 @@ class CommunicationsController extends Controller
         if ($communication->status === 'published') {
             $data['audience'] = $communication->audience;
         }
-        $service->save($data, $communication, (int) $request->user()->uid);
+        $saved = $service->save($data, $communication, (int) $request->user()->uid);
 
-        return redirect()->route('admin.communications.index', ['edit' => $communication->id])->with('communication_notice', '内容已更新。');
+        return redirect()->route('admin.communications.index', $saved->kind === 'announcement' ? ['announcement' => 1] : ['edit' => $saved->id])->with('communication_notice', '内容已更新。');
     }
 
     public function withdraw(Communication $communication, Communications $service)

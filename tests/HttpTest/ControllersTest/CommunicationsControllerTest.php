@@ -10,6 +10,46 @@ use Illuminate\Support\Facades\Schema;
 
 class CommunicationsControllerTest extends TestCase
 {
+    public function testListPaginationUsesSystemControlsAndSeparatesPages()
+    {
+        Communication::query()->delete();
+        for ($i = 1; $i <= 151; $i++) {
+            Communication::create(['title' => sprintf('分页内容%03d', $i), 'kind' => 'message', 'status' => 'draft', 'editor' => 'source', 'source' => '内容']);
+        }
+        $this->actingAs(User::factory()->admin()->create());
+        $this->get('/admin/communications')->assertOk()->assertSee('共 151 条，第 1 / 11 页')->assertSee('分页内容151')->assertDontSee('分页内容136')->assertSee('aria-current="page"', false)->assertSee('page=11')->assertSee('btn btn-default mr-2', false)->assertSee('…');
+        $this->get('/admin/communications?page=2')->assertOk()->assertSee('第 2 / 11 页')->assertSee('分页内容136')->assertDontSee('分页内容151')->assertSee('rel="prev"', false)->assertSee('rel="next"', false);
+        $this->get('/admin/communications?page=11')->assertOk()->assertSee('第 11 / 11 页')->assertSee('分页内容001')->assertDontSee('分页内容002')->assertDontSee('rel="next"', false);
+    }
+
+    public function testAnnouncementPencilOpensEditorAndSavesInPlace()
+    {
+        Communication::whereIn('kind', ['announcement', 'both'])->delete();
+        foreach ([User::ADMIN, User::SUPER_ADMIN] as $permission) {
+            $admin = User::factory()->create(['permission' => $permission]);
+            $this->actingAs($admin)->get('/user')->assertOk()->assertSee('communications?announcement=1');
+            $this->get('/admin/communications?announcement=1')->assertOk()->assertSee('内容设计器')->assertSee('实时预览');
+            $this->post('/admin/communications', $this->fields(['kind' => 'announcement', 'editor' => 'source', 'source' => '当前公告正文']))->assertRedirect('/admin/communications?announcement=1');
+            $id = Communication::where('kind', 'announcement')->value('id');
+            $this->post('/admin/communications', $this->fields(['kind' => 'announcement', 'editor' => 'source', 'source' => '覆盖后的公告']))->assertRedirect('/admin/communications?announcement=1');
+            $this->assertSame(1, Communication::where('kind', 'announcement')->count());
+            $this->assertSame($id, Communication::where('kind', 'announcement')->value('id'));
+            $this->get('/admin/communications?announcement=1')->assertOk()->assertSee('覆盖后的公告')->assertSee('更新发布内容');
+            $this->get('/user')->assertOk()->assertSee('覆盖后的公告')->assertDontSee('当前公告正文');
+        }
+    }
+
+    public function testAnnouncementEditsKeepSentMessageContent()
+    {
+        $admin = User::factory()->admin()->create();
+        $user = User::factory()->create();
+        $this->actingAs($admin)->post('/admin/communications', $this->fields(['editor' => 'source', 'source' => '同步发布的正文']))->assertRedirect();
+        $mail = $user->notifications()->firstOrFail();
+        $this->post('/admin/communications', $this->fields(['kind' => 'announcement', 'editor' => 'source', 'source' => '后来修改的公告']))->assertRedirect();
+        $this->actingAs($user)->get('/user')->assertOk()->assertSee('后来修改的公告')->assertDontSee('同步发布的正文');
+        $this->get('/user/inbox/'.$mail->id)->assertOk()->assertSee('同步发布的正文')->assertDontSee('后来修改的公告');
+    }
+
     private function fields(array $extra = []): array
     {
         return array_merge(['title' => '测试公告', 'kind' => 'both', 'editor' => 'blocks', 'blocks' => [
@@ -77,27 +117,33 @@ class CommunicationsControllerTest extends TestCase
 
     public function testReferenceComponentsRetainIndependentCollapseTargets()
     {
-        $renderer=app(CommunicationRenderer::class);
-        $source=file_get_contents(base_path('tests/fixtures/announcement-components.md'));
-        $html=$renderer->render(['editor'=>'source','source'=>$source]);
-        preg_match_all('/ id="([^"]+)"/',$html,$ids);
-        $this->assertSame(count($ids[1]),count(array_unique($ids[1])));
-        preg_match_all('/data-target="#([^"]+)"/',$html,$targets);
-        $this->assertCount(2,$targets[1]);
-        foreach($targets[1] as $target){$this->assertContains($target,$ids[1]);}
-        $blocks=$renderer->importBlocks($source);
-        $this->assertCount(2,array_filter($blocks,fn($block)=>$block['type']==='collapse'));
-        $this->assertStringContainsString('bg-cyan',$html);
+        $renderer = app(CommunicationRenderer::class);
+        $source = file_get_contents(base_path('tests/fixtures/announcement-components.md'));
+        $html = $renderer->render(['editor' => 'source', 'source' => $source]);
+        preg_match_all('/ id="([^"]+)"/', $html, $ids);
+        $this->assertSame(count($ids[1]), count(array_unique($ids[1])));
+        preg_match_all('/data-target="#([^"]+)"/', $html, $targets);
+        $this->assertCount(2, $targets[1]);
+        foreach ($targets[1] as $target) {
+            $this->assertContains($target, $ids[1]);
+        }
+        $blocks = $renderer->importBlocks($source);
+        $this->assertCount(2, array_filter($blocks, fn ($block) => $block['type'] === 'collapse'));
+        $this->assertStringContainsString('bg-cyan', $html);
     }
 
-    public function testGlobalAnnouncementsAlsoAppearWithLocalizedLegacyContent()
+    public function testCurrentAnnouncementUsesLocaleAndLatestDefault()
     {
-        Communication::where('legacy_key','option:announcement')->update(['source'=>'默认旧公告']);
-        Communication::create(['legacy_key'=>'option:announcement_zh_CN','title'=>'中文','kind'=>'announcement','status'=>'published','editor'=>'source','locale'=>'zh_CN','source'=>'中文旧公告']);
-        Communication::create(['title'=>'全部语言','kind'=>'announcement','status'=>'published','editor'=>'source','locale'=>'','source'=>'全体新公告']);
-        app()->setLocale('zh_CN');$html=app(\App\Services\Communications::class)->announcements();
-        $this->assertStringContainsString('中文旧公告',$html);$this->assertStringContainsString('全体新公告',$html);$this->assertStringNotContainsString('默认旧公告',$html);
-        app()->setLocale('en');$this->assertStringContainsString('默认旧公告',app(\App\Services\Communications::class)->announcements());
+        Communication::where('legacy_key', 'option:announcement')->update(['source' => '默认旧公告']);
+        Communication::create(['legacy_key' => 'option:announcement_zh_CN', 'title' => '中文', 'kind' => 'announcement', 'status' => 'published', 'editor' => 'source', 'locale' => 'zh_CN', 'source' => '中文旧公告']);
+        Communication::create(['title' => '全部语言', 'kind' => 'announcement', 'status' => 'published', 'editor' => 'source', 'locale' => '', 'source' => '全体新公告']);
+        app()->setLocale('zh_CN');
+        $html = app(\App\Services\Communications::class)->announcements();
+        $this->assertStringContainsString('中文旧公告', $html);
+        $this->assertStringNotContainsString('全体新公告', $html);
+        $this->assertStringNotContainsString('默认旧公告', $html);
+        app()->setLocale('en');
+        $this->assertStringContainsString('全体新公告', app(\App\Services\Communications::class)->announcements());
     }
 
     public function testBodySurvivesValidationFailureAndBlocksUseFormJson()
