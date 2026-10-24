@@ -46,6 +46,24 @@ class UserControllerTest extends TestCase
             ->assertDontSee(trans('user.verification.notice.title'));
     }
 
+    public function testDashboardAdministrationControlsFollowUserRole()
+    {
+        foreach ([User::NORMAL, User::ADMIN, User::SUPER_ADMIN] as $permission) {
+            $user = User::factory()->create(['permission' => $permission]);
+            $html = $this->actingAs($user)->get('/user')->assertOk()->getContent();
+            $this->assertSame(1, preg_match('/<aside\b.*?<\/aside>/s', $html, $sidebar));
+            $menu = 'href="'.url('admin').'"';
+            $editor = 'href="'.url('/admin/options').'"';
+            if ($permission >= User::ADMIN) {
+                $this->assertStringContainsString($menu, $sidebar[0]);
+                $this->assertStringContainsString($editor, $html);
+            } else {
+                $this->assertStringNotContainsString($menu, $sidebar[0]);
+                $this->assertStringNotContainsString($editor, $html);
+            }
+        }
+    }
+
     public function testScoreInfo()
     {
         $user = User::factory()->create();

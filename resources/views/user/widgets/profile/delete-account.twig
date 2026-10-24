@@ -5,7 +5,7 @@
     </h3>
   </div>
   <div class="card-body">
-    {% if user.admin %}
+    {% if user.isAdmin() %}
       <p>{{ trans('user.profile.delete.admin') }}</p>
       <button class="btn btn-danger" disabled="disabled">
         {{ trans('user.profile.delete.button') }}

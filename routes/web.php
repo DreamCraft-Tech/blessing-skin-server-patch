@@ -198,6 +198,8 @@ Route::prefix('admin')
         Route::prefix('update')->name('update.')->middleware('role:super-admin')->group(function () {
             Route::get('', 'UpdateController@showUpdatePage')->name('view');
             Route::post('download', 'UpdateController@download')->name('download');
+            Route::post('upload', 'UpdateController@upload')->middleware('throttle:6,1')->name('upload');
+            Route::post('install', 'UpdateController@install')->middleware('throttle:3,1')->name('install');
         });
     });
 

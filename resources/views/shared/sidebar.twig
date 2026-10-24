@@ -17,7 +17,7 @@
           {{ include('shared.side-menu', {type: 'user'}) }}
           <li class="nav-header">{{ trans('general.explore') }}</li>
           {{ include('shared.side-menu', {type: 'explore'}) }}
-          {% if auth_user().admin %}
+          {% if auth_user() and auth_user().isAdmin() %}
             <li class="nav-header">{{ trans('general.manage') }}</li>
             <li class="nav-item">
               <a class="nav-link" href="{{ url('admin') }}">

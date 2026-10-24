@@ -3,11 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Services\Unzip;
+use App\Services\UpdatePackage;
 use Cache;
 use Composer\CaBundle\CaBundle;
 use Composer\Semver\Comparator;
 use Illuminate\Filesystem\Filesystem;
+use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Http;
 
 class UpdateController extends Controller
@@ -26,6 +29,11 @@ class UpdateController extends Controller
             ],
             'error' => Arr::get($info, 'error', $canUpdate['reason']),
             'can_update' => $canUpdate['can'],
+            'package' => session('system_update_package'),
+            'patch_notes' => config('patch.notes', []),
+            'patch_date' => config('patch.date'),
+            'upload_limit' => ini_get('upload_max_filesize'),
+            'post_limit' => ini_get('post_max_size'),
         ]);
     }
 
@@ -56,26 +64,70 @@ class UpdateController extends Controller
         }
     }
 
+    public function upload(Request $request, UpdatePackage $packages)
+    {
+        $request->validate(['package' => 'required|file|max:262144']);
+        try {
+            $file = $request->file('package');
+            if (strtolower($file->getClientOriginalExtension()) !== 'zip') {
+                throw new \RuntimeException('请选择 ZIP 运行包。');
+            }
+            $info = $packages->prepare($file->getPathname());
+            $request->session()->put('system_update_package', $info);
+
+            return redirect()->route('admin.update.view')->with('update_notice', '运行包校验完成，请确认版本与校验值后安装。');
+        } catch (\Throwable $e) {
+            return redirect()->route('admin.update.view')->with('update_error', $e instanceof \RuntimeException ? $e->getMessage() : '运行包处理失败，请检查文件和目录权限。');
+        }
+    }
+
+    public function install(Request $request, UpdatePackage $packages, Filesystem $filesystem)
+    {
+        $input = $request->validate(['id' => 'required|string|size:32']);
+        $pending = $request->session()->get('system_update_package');
+        abort_unless($pending && hash_equals($pending['id'], $input['id']), 403);
+        try {
+            $packages->install($input['id']);
+            $filesystem->delete(storage_path('options.php'));
+            $filesystem->delete(app()->getCachedConfigPath());
+            $filesystem->delete(app()->getCachedRoutesPath());
+            Artisan::call('view:clear');
+            Artisan::call('twig:clean');
+            $request->session()->forget('system_update_package');
+
+            return redirect()->route('admin.update.view')->with('update_notice', '系统程序已更新，版本检查与数据库升级将在后续请求中完成。');
+        } catch (\Throwable $e) {
+            return redirect()->route('admin.update.view')->with('update_error', $e instanceof \RuntimeException ? $e->getMessage() : '安装失败，请检查站点目录权限与运行日志。');
+        }
+    }
+
     protected function getUpdateInfo()
     {
-        $response = Http::withOptions([
-            'verify' => CaBundle::getSystemCaRootBundlePath(),
-        ])->get(config('app.update_source'));
+        try {
+            $response = Http::connectTimeout(3)->timeout(8)->withOptions([
+                'verify' => CaBundle::getSystemCaRootBundlePath(),
+            ])->get(config('app.update_source'));
 
-        if ($response->ok()) {
-            $info = $response->json();
-            if (Arr::get($info, 'spec') === self::SPEC) {
-                return ['ok' => true, 'info' => $info];
+            if ($response->ok()) {
+                $info = $response->json();
+                if (Arr::get($info, 'spec') === self::SPEC) {
+                    return ['ok' => true, 'info' => $info];
+                } else {
+                    return ['ok' => false, 'error' => trans('admin.update.errors.spec')];
+                }
             } else {
-                return ['ok' => false, 'error' => trans('admin.update.errors.spec')];
+                return ['ok' => false, 'error' => 'HTTP status code: '.$response->status()];
             }
-        } else {
-            return ['ok' => false, 'error' => 'HTTP status code: '.$response->status()];
+        } catch (\Throwable) {
+            return ['ok' => false, 'error' => '更新源连接失败'];
         }
     }
 
     protected function canUpdate($info = [])
     {
+        if (!is_array($info) || !isset($info['php'], $info['latest'])) {
+            return ['can' => false, 'reason' => ''];
+        }
         $php = Arr::get($info, 'php');
         preg_match('/(\d+\.\d+\.\d+)/', PHP_VERSION, $matches);
         $version = $matches[1];

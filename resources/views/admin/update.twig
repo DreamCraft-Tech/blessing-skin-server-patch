@@ -3,6 +3,9 @@
 {% block title %}{{ trans('general.check-update') }}{% endblock %}
 
 {% block content %}
+  {% if session('update_notice') %}<div class="alert alert-success" role="status">{{ session('update_notice') }}</div>{% endif %}
+  {% if session('update_error') %}<div class="alert alert-danger" role="alert">{{ session('update_error') }}</div>{% endif %}
+  {% if errors.any() %}<div class="alert alert-danger" role="alert">{{ errors.first() }}</div>{% endif %}
   <div class="row">
     <div class="col-md-6">
       <div class="card card-primary">
@@ -73,6 +76,32 @@
           </a>
         </div>
       </div>
+      <div class="card card-outline card-primary">
+        <div class="card-header"><h3 class="card-title">ZIP 运行包更新</h3></div>
+        <div class="card-body">
+          <p>上传完整的 Blessing Skin 运行包，校验后安装。支持直接包含程序文件，或外层包含一个目录的 ZIP。</p>
+          <p class="text-muted">运行包包含 <code>vendor/</code> 和编译后的前端资源。上传上限：PHP 文件 {{ upload_limit }}、请求 {{ post_limit }}，应用 256 MiB。</p>
+          <form method="post" action="{{ route('admin.update.upload') }}" enctype="multipart/form-data" data-system-update-form data-progress="正在上传并校验运行包…">
+            {{ csrf_field() }}
+            <div class="form-group"><label for="system-update-package">选择 ZIP 运行包</label><input id="system-update-package" class="form-control-file" type="file" name="package" accept=".zip,application/zip" required></div>
+            <button type="submit" class="btn btn-primary">上传并校验</button>
+            <p class="mt-2 mb-0" role="status" data-update-progress hidden></p>
+          </form>
+          {% if package %}
+          <hr>
+          <dl class="row">
+            <dt class="col-sm-4">目标版本</dt><dd class="col-sm-8">{{ package.version }}</dd>
+            <dt class="col-sm-4">程序文件</dt><dd class="col-sm-8">{{ package.count }} 个</dd>
+            <dt class="col-sm-4">SHA-256</dt><dd class="col-sm-8"><code style="overflow-wrap:anywhere">{{ package.sha256 }}</code></dd>
+          </dl>
+          <form method="post" action="{{ route('admin.update.install') }}" data-system-update-form data-progress="正在安装运行包…">
+            {{ csrf_field() }}<input type="hidden" name="id" value="{{ package.id }}">
+            <button type="submit" class="btn btn-success">确认安装 {{ package.version }}</button>
+            <p class="mt-2 mb-0" role="status" data-update-progress hidden></p>
+          </form>
+          {% endif %}
+        </div>
+      </div>
     </div>
     <div class="col-md-6">
       <div class="card card-info">
@@ -88,6 +117,30 @@
           </a>
         </div>
       </div>
+      <div class="card card-outline card-info">
+        <div class="card-header"><h3 class="card-title">当前版本更新日志</h3></div>
+        <div class="card-body">
+          <p><strong>{{ info.current }}</strong> <span class="text-muted">{{ patch_date }}</span></p>
+          <ul class="pl-3 mb-0">{% for note in patch_notes %}<li class="mb-2">{{ note }}</li>{% else %}<li>当前版本已安装。</li>{% endfor %}</ul>
+        </div>
+      </div>
     </div>
   </div>
+{% endblock %}
+
+{% block before_foot %}
+<script>
+document.querySelectorAll('[data-system-update-form]').forEach(function (form) {
+  form.addEventListener('submit', function () {
+    form.querySelector('button[type="submit"]').disabled = true;
+    var status = form.querySelector('[data-update-progress]');
+    status.hidden = false;
+    var spinner = document.createElement('i');
+    spinner.className = 'fas fa-spinner fa-spin mr-1';
+    spinner.setAttribute('aria-hidden', 'true');
+    status.appendChild(spinner);
+    status.appendChild(document.createTextNode(form.dataset.progress));
+  });
+});
+</script>
 {% endblock %}

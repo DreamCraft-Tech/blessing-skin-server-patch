@@ -1,7 +1,7 @@
 <div class="card card-primary card-outline">
   <div class="card-header">
     <h3 class="card-title">{{ trans('user.announcement') }}</h3>
-    {% if auth_user().admin %}
+    {% if auth_user() and auth_user().isAdmin() %}
       &nbsp;
       <a href="{{ url('/admin/options') }}">
         <i class="fas fa-edit"></i>
