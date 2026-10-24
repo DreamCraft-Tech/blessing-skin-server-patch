@@ -113,7 +113,7 @@ class UpdateControllerTest extends TestCase
         $response = $this->get('/admin/update')->assertOk()->assertSee('custom-file-input')->assertSee('选择文件');
         $html = $response->getContent();
         $previous = -1;
-        foreach (['6.0.8_patch', '6.0.7_patch', '6.0.6_patch', '6.0.5_patch', '6.0.4_patch', '6.0.3_patch'] as $index => $version) {
+        foreach (['6.0.9_patch', '6.0.8_patch', '6.0.7_patch', '6.0.6_patch', '6.0.5_patch', '6.0.4_patch', '6.0.3_patch'] as $index => $version) {
             $position = strpos($html, '· '.$version);
             $this->assertNotFalse($position);
             $this->assertGreaterThan($previous, $position);

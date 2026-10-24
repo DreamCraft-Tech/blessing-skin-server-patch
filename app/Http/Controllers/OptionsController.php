@@ -222,7 +222,7 @@ class OptionsController extends Controller
             $form->text('plugins_registry', '插件仓库 URL')->placeholder(config('plugins.registry'));
         })->type('danger')->addMessage(
             '<p class="text-danger font-weight-bold mb-0">请注意，修改更新 URL 可能导致您的 Blessing Skin 被恶意代码注入，进而影响您的数据、服务器或内网资产安全。<br>我们无法 100% 保证第三方更新源的安全，修改这里之前<strong>请一定要知道你在做什么！</strong></p>'.
-            '<div class="mt-3 d-flex flex-wrap"><button type="submit" name="update_source_preset" value="official" class="btn btn-default mr-2 mb-2">切换到 bs-community 官方源</button><button type="submit" name="update_source_preset" value="patch" class="btn btn-primary mb-2">切换到 DreamCraft-Tech patch 源</button></div>',
+            '<div class="mt-3 d-flex flex-wrap"><button type="submit" name="update_source_preset" value="official" class="btn btn-default mr-2 mb-2">切换到 bs-community 官方源</button><button type="submit" name="update_source_preset" value="patch" class="btn btn-primary mb-2">切换到 DreamCraft-Tech 第三方修补源</button></div>',
             'danger'
         )->before(function () {
             request()->validate([
@@ -233,6 +233,11 @@ class OptionsController extends Controller
                     }
                 }],
             ]);
+            try {
+                app(\App\Services\UpdateSources::class)->save(request()->only(['update_source', 'plugins_registry']));
+            } catch (\Throwable $e) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['update_source' => $e instanceof \RuntimeException ? $e->getMessage() : '更新源写入失败，请检查 .env 文件与配置缓存目录权限。']);
+            }
         })->handle()->always(function ($form) {
             $form->with('update_source', option('update_source') ?: config('app.update_source'));
             $form->with('plugins_registry', option('plugins_registry') ?: config('plugins.registry'));

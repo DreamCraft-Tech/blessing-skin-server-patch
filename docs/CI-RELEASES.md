@@ -18,4 +18,6 @@
 
 在“站点配置”的“更新与插件仓库”卡片保存地址后生效；留空时使用 config/app.php 与 config/plugins.php 的默认地址，UPDATE_SOURCE 和 PLUGINS_REGISTRY 环境变量可覆盖默认值。发布任务在全部 ZIP 校验后生成 JSON，并与所有安装包一起上传后公开。
 
-卡片中的“切换到 bs-community 官方源”和“切换到 DreamCraft-Tech patch 源”同时保存主站与插件地址。官方预设沿用上游 dev 分支的 [主站配置](https://github.com/bs-community/blessing-skin-server/blob/dev/config/app.php) 与 [插件仓库配置](https://github.com/bs-community/blessing-skin-server/blob/dev/config/plugins.php)。
+卡片中的“切换到 bs-community 官方源”和“切换到 DreamCraft-Tech 第三方修补源”同时保存主站与插件地址。官方预设沿用上游 dev 分支的 [主站配置](https://github.com/bs-community/blessing-skin-server/blob/dev/config/app.php) 与 [插件仓库配置](https://github.com/bs-community/blessing-skin-server/blob/dev/config/plugins.php)。
+
+保存或切换预设时同步 .env 中的 UPDATE_SOURCE 和 PLUGINS_REGISTRY，只修改这两个字段并保持其他配置与文件权限，清除 Laravel 配置缓存。清空地址会移除对应环境变量并采用默认第三方修补源。写入失败时显示表单错误，不保存新的面板配置。

@@ -1,3 +1,8 @@
+# 6.0.9_patch · 2026-10-25
+
+- 更新源保存和切换同时同步 .env 的 UPDATE_SOURCE、PLUGINS_REGISTRY，刷新 Laravel 配置缓存。
+- 第三方源按钮改为“切换到 DreamCraft-Tech 第三方修补源”。
+
 # 6.0.8_patch · 2026-10-25
 
 - 更新源配置在两个 URL 输入框上方显示红色加粗的第三方更新源安全提示。

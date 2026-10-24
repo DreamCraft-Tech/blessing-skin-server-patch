@@ -1,6 +1,10 @@
 <?php
 
 return ['releases' => [
+    ['version' => '6.0.9_patch', 'date' => '2026-10-25', 'notes' => [
+        '更新源保存及预设切换同步写入 .env 的 UPDATE_SOURCE 和 PLUGINS_REGISTRY，并刷新配置缓存。',
+        '第三方源切换按钮使用“第三方修补源”名称。',
+    ]],
     ['version' => '6.0.8_patch', 'date' => '2026-10-25', 'notes' => [
         '更新源配置在地址输入框上方显示红色加粗的第三方更新源安全提示。',
         '增加官方源与 DreamCraft-Tech patch 源切换按钮，一次保存主站和插件仓库地址。',
