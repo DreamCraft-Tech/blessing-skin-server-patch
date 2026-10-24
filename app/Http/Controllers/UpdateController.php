@@ -30,8 +30,7 @@ class UpdateController extends Controller
             'error' => Arr::get($info, 'error', $canUpdate['reason']),
             'can_update' => $canUpdate['can'],
             'package' => session('system_update_package'),
-            'patch_notes' => config('patch.notes', []),
-            'patch_date' => config('patch.date'),
+            'patch_releases' => collect(config('patch.releases', []))->sort(fn ($a, $b) => version_compare($b['version'], $a['version']))->values()->all(),
             'upload_limits' => app(\App\Services\UploadLimits::class)->current(),
         ]);
     }

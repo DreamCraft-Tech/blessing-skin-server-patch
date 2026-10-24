@@ -84,7 +84,7 @@
           {% if not upload_limits.enabled %}<p class="text-warning">PHP 文件上传已关闭。</p>{% endif %}
           <form method="post" action="{{ route('admin.update.upload') }}" enctype="multipart/form-data" data-system-update-form data-progress="正在上传并校验运行包…">
             {{ csrf_field() }}
-            <div class="form-group"><label for="system-update-package">选择 ZIP 运行包</label><input id="system-update-package" class="form-control-file" type="file" name="package" accept=".zip,application/zip" required {{ not upload_limits.enabled ? 'disabled' : '' }}></div>
+            <div class="form-group"><label for="system-update-package">选择 ZIP 运行包</label><div class="custom-file"><input id="system-update-package" class="custom-file-input" type="file" name="package" accept=".zip,application/zip" required {{ not upload_limits.enabled ? 'disabled' : '' }}><label class="custom-file-label" for="system-update-package" data-browse="选择文件">尚未选择文件</label></div></div>
             <button type="submit" class="btn btn-primary" {{ not upload_limits.enabled ? 'disabled' : '' }}>上传并校验</button>
             <p class="mt-2 mb-0" role="status" data-update-progress hidden></p>
           </form>
@@ -118,23 +118,29 @@
           </a>
         </div>
       </div>
+      {% for release in patch_releases %}
       <div class="card card-outline card-info">
         <div class="card-header p-0">
-          <button type="button" class="btn btn-block text-left font-weight-bold collapsed p-3" data-toggle="collapse" data-target="#current-version-changelog" aria-expanded="false" aria-controls="current-version-changelog">
-            当前版本更新日志 <span class="float-right"><i class="fas fa-angle-down" aria-hidden="true"></i></span>
+          <button type="button" class="btn btn-block text-left font-weight-bold collapsed p-3" data-toggle="collapse" data-target="#version-changelog-{{ loop.index }}" aria-expanded="false" aria-controls="version-changelog-{{ loop.index }}">
+            {{ release.version == info.current ? '当前版本更新日志' : '版本更新日志' }} · {{ release.version }} <span class="float-right"><i class="fas fa-angle-down" aria-hidden="true"></i></span>
           </button>
         </div>
-        <div class="card-body collapse" id="current-version-changelog">
-          <p><strong>{{ info.current }}</strong> <span class="text-muted">{{ patch_date }}</span></p>
-          <ul class="pl-3 mb-0">{% for note in patch_notes %}<li class="mb-2">{{ note }}</li>{% else %}<li>当前版本已安装。</li>{% endfor %}</ul>
+        <div class="card-body collapse" id="version-changelog-{{ loop.index }}">
+          <p class="text-muted">{{ release.date }}</p>
+          <ul class="pl-3 mb-0">{% for note in release.notes %}<li class="mb-2">{{ note }}</li>{% endfor %}</ul>
         </div>
       </div>
+      {% endfor %}
     </div>
   </div>
 {% endblock %}
 
 {% block before_foot %}
 <script>
+var packageInput = document.getElementById('system-update-package');
+packageInput.addEventListener('change', function () {
+  packageInput.nextElementSibling.textContent = packageInput.files.length ? packageInput.files[0].name : '尚未选择文件';
+});
 document.querySelectorAll('[data-system-update-form]').forEach(function (form) {
   form.addEventListener('submit', function () {
     form.querySelector('button[type="submit"]').disabled = true;
