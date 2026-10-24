@@ -2,6 +2,10 @@
 
 基于 Blessing Skin Server 6.0.2 开发快照 `52f6fef` 的 PHP 8.5 / Laravel 10 补丁分支，当前版本 **6.0.6_patch**。
 
+## 自动检查与发布
+
+工作流和发布产物说明见 [docs/CI-RELEASES.md](docs/CI-RELEASES.md)。
+
 ## 修改历史
 
 保留上游完整历史。后续签名提交按 PHP 8.5 适配、6.0.3_patch、6.0.4_patch、6.0.5_patch、6.0.6_patch 顺序重建自已交付版本包，每次在原文件路径更新。打开文件 History 或查看 commit diff 可追踪具体改动。提交日期记录本次重建时间，版本日期见 CHANGELOG-PATCH.md。版本标签留待后续 Actions 发布流程生成。

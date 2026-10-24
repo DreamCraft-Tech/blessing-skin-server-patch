@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build a clean PHP 8.5 runtime archive from this checkout."""
 from pathlib import Path
-import argparse,subprocess,shutil,tempfile,zipfile,hashlib,json
+import argparse,subprocess,shutil,tempfile,zipfile,hashlib,json,os,re
 p=argparse.ArgumentParser();p.add_argument('--php',default='php');p.add_argument('--composer',default='composer');p.add_argument('--yarn',default='yarn');p.add_argument('--output',required=True);p.add_argument('--skip-install',action='store_true');a=p.parse_args()
 repo=Path(__file__).resolve().parents[1];out=Path(a.output).resolve()
 if out.exists():raise SystemExit('Output directory must not exist')
@@ -14,7 +14,10 @@ run([a.yarn,'build'])
 assets=repo/'public/app';assets.mkdir(parents=True,exist_ok=True)
 for name in ['bg.webp','favicon.ico']:shutil.copy2(repo/'resources/assets/src/images'/name,assets/name)
 for f in (repo/'resources/assets/standalone').glob('*.js'):shutil.copy2(f,assets/f.name)
-version=json.loads((repo/'package.json').read_text())['version'];out.mkdir(parents=True)
+version=json.loads((repo/'package.json').read_text())['version']
+assert re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+(?:[._+-][A-Za-z0-9.-]+)?',version)
+assert re.search(r"['\"]version['\"]\s*=>\s*['\"]"+re.escape(version)+r"['\"]",(repo/'config/app.php').read_text()),'package.json and config/app.php versions must match'
+out.mkdir(parents=True)
 with tempfile.TemporaryDirectory(prefix='blessing-php85-') as tmp:
  stage=Path(tmp)
  for name in ['app','bootstrap','config','database','plugins','public','resources/lang','resources/views','resources/misc/textures','routes','storage','vendor','.env.example','artisan','LICENSE','README.md','README-zh.md','index.html','composer.json','composer.lock','CHANGELOG-PATCH.md','BUILD-PHP85.md']:
@@ -29,5 +32,8 @@ with tempfile.TemporaryDirectory(prefix='blessing-php85-') as tmp:
  with zipfile.ZipFile(archive,'w',zipfile.ZIP_DEFLATED) as z:
   for f in sorted(stage.rglob('*')):
    if f.is_file():z.write(f,str(f.relative_to(stage)))
-(out/'SHA256SUMS').write_text(hashlib.sha256(archive.read_bytes()).hexdigest()+'  '+archive.name+'\n')
+checksum=hashlib.sha256(archive.read_bytes()).hexdigest()
+manifest={'version':version,'commit':os.environ.get('GITHUB_SHA') or subprocess.check_output(['git','rev-parse','HEAD'],cwd=repo,text=True).strip(),'php':'8.5','packages':[{'name':'blessing-skin-server','version':version,'filename':archive.name,'sha256':checksum}]}
+(out/'manifest.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+'\n')
+(out/'SHA256SUMS').write_text(checksum+'  '+archive.name+'\n'+hashlib.sha256((out/'manifest.json').read_bytes()).hexdigest()+'  manifest.json\n')
 print(archive)
