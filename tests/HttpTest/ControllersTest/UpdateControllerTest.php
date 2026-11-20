@@ -14,6 +14,7 @@ class UpdateControllerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        \Illuminate\Support\Facades\Storage::fake('local');
         $this->actingAs(User::factory()->superAdmin()->create());
     }
 
@@ -87,14 +88,14 @@ class UpdateControllerTest extends TestCase
             $this->post('/admin/update/install', ['id' => str_repeat('a', 32)])->assertForbidden();
         }
         $this->actingAs(User::factory()->superAdmin()->create());
-        $this->post('/admin/update/install', ['id' => str_repeat('a', 32)])->assertForbidden();
+        $this->post('/admin/update/install', ['id' => str_repeat('a', 32)])->assertRedirect('/admin/update')->assertSessionHas('update_error');
     }
 
     public function testUploadShowsPackageReviewBeforeInstallation()
     {
         $info = ['id' => str_repeat('a', 32), 'version' => '6.0.6_patch', 'sha256' => str_repeat('b', 64), 'count' => 100, 'files' => [], 'created_at' => time()];
         $this->mock(\App\Services\UpdatePackage::class, fn ($mock) => $mock->shouldReceive('prepare')->once()->andReturn($info));
-        $this->post('/admin/update/upload', ['package' => \Illuminate\Http\UploadedFile::fake()->create('runtime.zip', 100, 'application/zip')])->assertRedirect('/admin/update')->assertSessionHas('system_update_package', $info);
+        $this->post('/admin/update/upload', ['package' => \Illuminate\Http\UploadedFile::fake()->create('runtime.zip', 100, 'application/zip')])->assertRedirect('/admin/update')->assertSessionHas('system_update_package', \Illuminate\Support\Arr::except($info, ['files']));
         Http::fake([config('app.update_source') => Http::response('', 404)]);
         $this->get('/admin/update')->assertOk()->assertSee('确认安装 6.0.6_patch')->assertSee(str_repeat('b', 64));
     }
@@ -113,8 +114,8 @@ class UpdateControllerTest extends TestCase
         $response = $this->get('/admin/update')->assertOk()->assertSee('custom-file-input')->assertSee('选择文件');
         $html = $response->getContent();
         $previous = -1;
-        foreach (['6.1.0', '6.0.11_patch', '6.0.10_patch', '6.0.9_patch', '6.0.8_patch', '6.0.7_patch', '6.0.6_patch', '6.0.5_patch', '6.0.4_patch', '6.0.3_patch'] as $index => $version) {
-            $position = strpos($html, '· '.$version);
+        foreach (['6.1.0.1', '6.1.0', '6.0.11_patch', '6.0.10_patch', '6.0.9_patch', '6.0.8_patch', '6.0.7_patch', '6.0.6_patch', '6.0.5_patch', '6.0.4_patch', '6.0.3_patch'] as $index => $version) {
+            $position = strpos($html, '· '.$version.' <span');
             $this->assertNotFalse($position);
             $this->assertGreaterThan($previous, $position);
             $previous = $position;
@@ -133,7 +134,7 @@ class UpdateControllerTest extends TestCase
 
     public function testFullRuntimeDownloadRequiresMatchingHashAndReview()
     {
-        $pending = ['id' => str_repeat('a', 32), 'version' => '8.9.3'];
+        $pending = ['id' => str_repeat('a', 32), 'version' => '8.9.3', 'created_at' => time()];
         $this->mock(\App\Services\UpdatePackage::class, fn ($mock) => $mock->shouldReceive('prepare')->once()->andReturn($pending));
         Http::fake(function ($request, $options) {
             if ($request->url() === 'https://whatever.test/8.9.3/update.zip') {
@@ -160,6 +161,59 @@ class UpdateControllerTest extends TestCase
             return Http::response($this->fakeUpdateInfo('8.9.3', ['package' => 'full', 'sha256' => hash('sha256', 'runtime')]));
         });
         $this->postJson('/admin/update/download')->assertJson(['code' => 1])->assertSessionMissing('system_update_package');
+    }
+
+    public function testInstallRecoversUserBoundTaskAfterSessionDataIsLost(): void
+    {
+        $id = str_repeat('c', 32);
+        app(\App\Services\UpdateTasks::class)->remember((int) auth()->id(), ['id' => $id, 'version' => '8.9.3', 'files' => array_fill(0, 10000, 'vendor/file.php')]);
+        $this->assertArrayNotHasKey('files', app(\App\Services\UpdateTasks::class)->pending((int) auth()->id()));
+        $this->mock(\App\Services\UpdatePackage::class, fn ($mock) => $mock->shouldReceive('install')->once()->with($id)->andReturn([]));
+        $this->post('/admin/update/install', ['id' => $id])->assertRedirect('/admin/update')->assertSessionHas('update_notice');
+        $this->assertNull(app(\App\Services\UpdateTasks::class)->pending((int) auth()->id()));
+    }
+
+    public function testAnotherSuperAdministratorCannotInstallOtherUsersTask(): void
+    {
+        $id = str_repeat('d', 32);
+        app(\App\Services\UpdateTasks::class)->remember((int) auth()->id(), ['id' => $id]);
+        $this->actingAs(User::factory()->superAdmin()->create());
+        $this->mock(\App\Services\UpdatePackage::class, fn ($mock) => $mock->shouldNotReceive('install'));
+        $this->post('/admin/update/install', ['id' => $id])->assertRedirect('/admin/update')->assertSessionHas('update_error');
+    }
+
+    public function testStreamedDownloadPersistsReviewWithoutSessionAndReportsProgress(): void
+    {
+        $id = str_repeat('e', 32);
+        $this->mock(\App\Services\UpdatePackage::class, fn ($mock) => $mock->shouldReceive('prepare')->once()->andReturn(['id' => $id, 'version' => '8.9.3']));
+        Http::fake(function ($request, $options) {
+            if (str_ends_with($request->url(), 'update.zip')) {
+                file_put_contents($options['sink'], 'runtime');
+                $options['progress'](100, 50);
+
+                return Http::response('runtime');
+            }
+
+            return Http::response($this->fakeUpdateInfo('8.9.3', ['package' => 'full', 'sha256' => hash('sha256', 'runtime')]));
+        });
+        $response = $this->withHeaders(['Accept' => 'application/x-ndjson'])->post('/admin/update/download')->assertOk()->assertHeader('X-Accel-Buffering', 'no');
+        $events = array_map(fn ($line) => json_decode($line, true, 512, JSON_THROW_ON_ERROR), explode("\n", trim($response->streamedContent())));
+        $this->assertContains(['type' => 'progress', 'downloaded' => 50, 'total' => 100], $events);
+        $this->assertSame(0, end($events)['code']);
+        session()->forget('system_update_package');
+        Http::fake([config('app.update_source') => Http::response('', 404)]);
+        $this->get('/admin/update')->assertSee('确认安装 8.9.3');
+    }
+
+    public function testDownloadReportsHttpAndConnectionFailures(): void
+    {
+        Http::fake([
+            config('app.update_source') => Http::response($this->fakeUpdateInfo('8.9.3')),
+            'https://whatever.test/8.9.3/update.zip' => Http::response('unavailable', 503),
+        ]);
+        $this->postJson('/admin/update/download')->assertJson(['code' => 1])->assertJsonPath('message', fn ($message) => str_contains($message, 'HTTP 503'));
+        Http::fake(fn () => throw new \Illuminate\Http\Client\ConnectionException('cURL error 28: timed out'));
+        $this->postJson('/admin/update/download')->assertJson(['code' => 1])->assertJsonPath('message', fn ($message) => str_contains($message, '超时'));
     }
 
     protected function fakeUpdateInfo(string $version, $extra = [])

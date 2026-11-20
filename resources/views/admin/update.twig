@@ -57,13 +57,17 @@
             </div>
           {% endif %}
         </div>
+        <div id="update-download-status" class="card-body pt-0" role="status" aria-live="polite" hidden>
+          <p class="mb-2" data-download-message></p>
+          <div class="progress"><div class="progress-bar" role="progressbar" aria-label="运行包下载进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" style="width:0%"></div></div>
+        </div>
         <div class="card-footer">
           {% if can_update %}
-            <button class="btn bg-primary" id="update">
+            <button class="btn btn-primary" id="update">
               {{ trans('admin.update.info.button') }}
             </button>
           {% else %}
-            <button class="btn bg-primary" disabled="disabled">
+            <button class="btn btn-primary" disabled="disabled">
               {{ trans('admin.update.info.button') }}
             </button>
           {% endif %}

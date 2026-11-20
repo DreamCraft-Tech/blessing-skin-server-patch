@@ -4,14 +4,16 @@ namespace App\Http\Controllers;
 
 use App\Services\Unzip;
 use App\Services\UpdatePackage;
-use Cache;
+use App\Services\UpdateTasks;
 use Composer\CaBundle\CaBundle;
 use Composer\Semver\Comparator;
 use Illuminate\Filesystem\Filesystem;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class UpdateController extends Controller
 {
@@ -29,7 +31,7 @@ class UpdateController extends Controller
             ],
             'error' => Arr::get($info, 'error', $canUpdate['reason']),
             'can_update' => $canUpdate['can'],
-            'package' => session('system_update_package'),
+            'package' => app(UpdateTasks::class)->pending((int) auth()->id()) ?? session('system_update_package'),
             'patch_releases' => collect(config('patch.releases', []))->sort(fn ($a, $b) => version_compare($b['version'], $a['version']))->values()->all(),
             'upload_limits' => app(\App\Services\UploadLimits::class)->current(),
         ]);
@@ -37,48 +39,106 @@ class UpdateController extends Controller
 
     public function download(Request $request, Unzip $unzip, Filesystem $filesystem, UpdatePackage $packages)
     {
-        $info = $this->getUpdateInfo();
-        if (!$info['ok'] || !$this->canUpdate($info['info'])['can']) {
-            return json(trans('admin.update.info.up-to-date'), 1);
+        if (str_contains($request->header('Accept', ''), 'application/x-ndjson')) {
+            return response()->stream(function () use ($request, $unzip, $filesystem, $packages) {
+                $emit = function (array $event) {
+                    echo json_encode($event, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE)."\n";
+                    if (!app()->runningUnitTests()) {
+                        if (ob_get_level() > 0) {
+                            @ob_flush();
+                        }
+                        flush();
+                    }
+                };
+                $result = $this->performDownload($request, $unzip, $filesystem, $packages, $emit);
+                $emit(['type' => 'result'] + $result->getData(true));
+            }, 200, ['Content-Type' => 'application/x-ndjson; charset=UTF-8', 'Cache-Control' => 'no-cache, no-store, no-transform', 'X-Accel-Buffering' => 'no']);
         }
 
-        $info = $info['info'];
-        $path = tempnam(sys_get_temp_dir(), 'bs');
+        return $this->performDownload($request, $unzip, $filesystem, $packages, function (array $event) {});
+    }
 
-        $response = Http::withOptions([
-            'sink' => $path,
-            'verify' => CaBundle::getSystemCaRootBundlePath(),
-        ])->get($info['url']);
-
-        if ($response->ok()) {
+    private function performDownload(Request $request, Unzip $unzip, Filesystem $filesystem, UpdatePackage $packages, callable $emit)
+    {
+        $path = null;
+        try {
+            $emit(['type' => 'status', 'message' => '正在连接更新源…']);
+            $result = $this->getUpdateInfo();
+            if (!$result['ok']) {
+                return json($result['error'], 1);
+            }
+            $available = $this->canUpdate($result['info']);
+            if (!$available['can']) {
+                return json($available['reason'] ?: trans('admin.update.info.up-to-date'), 1);
+            }
+            $info = $result['info'];
+            if (!is_string($info['url'] ?? null) || !filter_var($info['url'], FILTER_VALIDATE_URL) || !in_array(parse_url($info['url'], PHP_URL_SCHEME), ['http', 'https'], true)) {
+                throw new \RuntimeException('更新源未提供有效的 HTTP / HTTPS 下载地址。');
+            }
+            $path = tempnam(sys_get_temp_dir(), 'bs');
+            if (!$path) {
+                throw new \RuntimeException('无法创建下载临时文件，请检查临时目录权限和可用空间。');
+            }
+            $emit(['type' => 'status', 'message' => '正在下载运行包…']);
+            $last = 0;
+            $response = Http::connectTimeout(10)->timeout(600)->withOptions([
+                'sink' => $path,
+                'verify' => CaBundle::getSystemCaRootBundlePath(),
+                'progress' => function ($total, $downloaded) use ($emit, &$last) {
+                    if (microtime(true) - $last < 0.25 && (!$total || $downloaded < $total)) {
+                        return;
+                    }
+                    $last = microtime(true);
+                    $emit(['type' => 'progress', 'downloaded' => $downloaded, 'total' => $total]);
+                },
+            ])->get($info['url']);
+            if (!$response->ok()) {
+                return json('运行包下载失败：HTTP '.$response->status().'。请检查更新源，或使用 ZIP 运行包更新。', 1);
+            }
+            $emit(['type' => 'status', 'message' => '下载完成，正在校验并解压运行包…']);
             if (Arr::get($info, 'package') === 'full') {
-                try {
-                    $checksum = Arr::get($info, 'sha256', '');
-                    if (!preg_match('/\A[a-f0-9]{64}\z/D', $checksum) || !hash_equals($checksum, hash_file('sha256', $path))) {
-                        throw new \RuntimeException('运行包校验值与更新信息不一致，请重新检查更新。');
-                    }
-                    $pending = $packages->prepare($path);
-                    if ($pending['version'] !== $info['latest']) {
-                        throw new \RuntimeException('运行包版本与更新信息不一致。');
-                    }
-                    $request->session()->put('system_update_package', $pending);
-
-                    return json('运行包已下载并校验，请确认后安装。', 0, ['review' => true]);
-                } catch (\RuntimeException $e) {
-                    return json($e->getMessage(), 1);
-                } finally {
-                    @unlink($path);
+                $checksum = Arr::get($info, 'sha256', '');
+                if (!is_string($checksum) || !preg_match('/\A[a-f0-9]{64}\z/D', $checksum) || !hash_equals($checksum, hash_file('sha256', $path))) {
+                    throw new \RuntimeException('运行包 SHA-256 校验失败，请重新下载。');
                 }
+                $pending = $packages->prepare($path);
+                if ($pending['version'] !== $info['latest']) {
+                    throw new \RuntimeException('运行包版本与更新信息不一致。');
+                }
+                $pending = app(UpdateTasks::class)->remember((int) $request->user()->uid, $pending);
+                $request->session()->put('system_update_package', $pending);
+
+                return json('运行包已下载并校验，请确认后安装。', 0, ['review' => true]);
             }
             $unzip->extract($path, base_path());
-
-            // Delete options cache. This allows us to update the version.
             $filesystem->delete(storage_path('options.php'));
 
             return json(trans('admin.update.complete'), 0);
-        } else {
-            return json(trans('admin.download.errors.download', ['error' => $response->status()]), 1);
+        } catch (ConnectionException $e) {
+            Log::warning('System update download connection failed', ['error' => $e->getMessage()]);
+
+            return json($this->connectionError($e), 1);
+        } catch (\Throwable $e) {
+            Log::error('System update download failed', ['exception' => $e]);
+
+            return json($e instanceof \RuntimeException ? $e->getMessage() : '运行包处理失败，请检查目录权限、磁盘空间和站点运行日志。', 1);
+        } finally {
+            if ($path && is_file($path)) {
+                @unlink($path);
+            }
         }
+    }
+
+    private function connectionError(\Throwable $e): string
+    {
+        $message = $e->getMessage();
+        if (preg_match('/cURL error (\d+)/', $message, $match)) {
+            $reason = [6 => '无法解析下载域名', 7 => '无法连接下载服务器', 18 => '下载未完成，连接提前关闭', 23 => '下载文件写入失败，请检查磁盘空间和临时目录权限', 28 => '连接或下载超时', 35 => 'TLS 握手失败', 60 => 'TLS 证书校验失败'][$match[1]] ?? '网络连接中断';
+
+            return '更新源连接失败：'.$reason.'（cURL '.$match[1].'）。请检查服务端网络或使用 ZIP 运行包更新。';
+        }
+
+        return '更新源连接失败：网络连接中断。请检查服务端 DNS、网络及站点运行日志。';
     }
 
     public function upload(Request $request, UpdatePackage $packages)
@@ -91,6 +151,7 @@ class UpdateController extends Controller
                 throw new \RuntimeException('请选择 ZIP 运行包。');
             }
             $info = $packages->prepare($file->getPathname());
+            $info = app(UpdateTasks::class)->remember((int) $request->user()->uid, $info);
             $request->session()->put('system_update_package', $info);
 
             return redirect()->route('admin.update.view')->with('update_notice', '运行包校验完成，请确认版本与校验值后安装。');
@@ -102,8 +163,12 @@ class UpdateController extends Controller
     public function install(Request $request, UpdatePackage $packages, Filesystem $filesystem)
     {
         $input = $request->validate(['id' => 'required|string|size:32']);
-        $pending = $request->session()->get('system_update_package');
-        abort_unless($pending && hash_equals($pending['id'], $input['id']), 403);
+        $pending = app(UpdateTasks::class)->pending((int) $request->user()->uid);
+        $session = $request->session()->get('system_update_package');
+        $matches = fn ($task) => is_array($task) && isset($task['id']) && hash_equals($task['id'], $input['id']);
+        if (!$matches($pending) && !$matches($session)) {
+            return redirect()->route('admin.update.view')->with('update_error', '更新任务已失效，请重新下载或上传运行包后确认安装。');
+        }
         try {
             $packages->install($input['id']);
             $filesystem->delete(storage_path('options.php'));
@@ -112,6 +177,7 @@ class UpdateController extends Controller
             Artisan::call('view:clear');
             Artisan::call('twig:clean');
             $request->session()->forget('system_update_package');
+            app(UpdateTasks::class)->forget((int) $request->user()->uid);
 
             return redirect()->route('admin.update.view')->with('update_notice', '系统程序已更新，版本检查与数据库升级将在后续请求中完成。');
         } catch (\Throwable $e) {
@@ -130,14 +196,16 @@ class UpdateController extends Controller
                 $info = $response->json();
                 if (Arr::get($info, 'spec') === self::SPEC) {
                     return ['ok' => true, 'info' => $info];
-                } else {
-                    return ['ok' => false, 'error' => trans('admin.update.errors.spec')];
                 }
-            } else {
-                return ['ok' => false, 'error' => 'HTTP status code: '.$response->status()];
+
+                return ['ok' => false, 'error' => trans('admin.update.errors.spec')];
             }
-        } catch (\Throwable) {
-            return ['ok' => false, 'error' => '更新源连接失败'];
+
+            return ['ok' => false, 'error' => 'HTTP status code: '.$response->status()];
+        } catch (\Throwable $e) {
+            Log::warning('System update source failed', ['error' => $e->getMessage()]);
+
+            return ['ok' => false, 'error' => $this->connectionError($e)];
         }
     }
 
