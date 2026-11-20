@@ -74,7 +74,7 @@ class UpdateControllerTest extends TestCase
     {
         $this->actingAs(User::factory()->superAdmin()->create(['locale' => 'zh_CN']));
         Http::fake(fn () => throw new \Illuminate\Http\Client\ConnectionException('offline'));
-        $response = $this->get('/admin/update')->assertOk()->assertSee('ZIP 运行包更新')->assertSee('当前版本更新日志')->assertSee('6.0.6_patch');
+        $response = $this->get('/admin/update')->assertOk()->assertSee('ZIP 运行包更新')->assertSee('当前版本更新日志')->assertSee('当前版本更新日志 · '.config('app.version'));
         if ($directory = getenv('UPDATE_UI_PREVIEW_DIR')) {
             file_put_contents($directory.'/update.html', $response->getContent());
         }
@@ -108,20 +108,15 @@ class UpdateControllerTest extends TestCase
         $this->post('/admin/update/upload', ['package' => \Illuminate\Http\UploadedFile::fake()->create('runtime.zip', 1536, 'application/zip')])->assertSessionHasErrors('package');
     }
 
-    public function testVersionLogsAreNewestFirstAndCollapsed()
+    public function testOnlyCurrentVersionChangelogIsDisplayedAndCollapsed()
     {
         Http::fake([config('app.update_source') => Http::response('', 404)]);
+        config(['patch.releases' => array_merge([['version' => '99.0.0', 'date' => '2099-01-01', 'notes' => ['FUTURE-NOTE']]], config('patch.releases'))]);
         $response = $this->get('/admin/update')->assertOk()->assertSee('custom-file-input')->assertSee('选择文件');
-        $html = $response->getContent();
-        $previous = -1;
-        foreach (['6.1.0.1', '6.1.0', '6.0.11_patch', '6.0.10_patch', '6.0.9_patch', '6.0.8_patch', '6.0.7_patch', '6.0.6_patch', '6.0.5_patch', '6.0.4_patch', '6.0.3_patch'] as $index => $version) {
-            $position = strpos($html, '· '.$version.' <span');
-            $this->assertNotFalse($position);
-            $this->assertGreaterThan($previous, $position);
-            $previous = $position;
-            $response->assertSee('class="card-body collapse" id="version-changelog-'.($index + 1).'"', false);
-        }
-        $this->assertStringNotContainsString('class="card-body collapse show"', $html);
+        $response->assertSee('当前版本更新日志 · '.config('app.version'))->assertDontSee('FUTURE-NOTE')->assertDontSee('· 6.1.0.1 <span', false);
+        $this->assertSame(1, substr_count($response->getContent(), 'class="card-body collapse" id="version-changelog-'));
+        $this->assertStringNotContainsString('class="card-body collapse show"', $response->getContent());
+        $this->assertGreaterThan(1, count(config('patch.releases')));
     }
 
     public function testConfiguredUpdateSourceIsUsed()

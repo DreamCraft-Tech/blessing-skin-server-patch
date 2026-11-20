@@ -20,6 +20,8 @@ for f in (repo/'resources/assets/standalone').glob('*.js'):shutil.copy2(f,assets
 version=json.loads((repo/'package.json').read_text())['version']
 assert re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+(?:[._+-][A-Za-z0-9.-]+)?',version)
 assert re.search(r"['\"]version['\"]\s*=>\s*['\"]"+re.escape(version)+r"['\"]",(repo/'config/app.php').read_text()),'package.json and config/app.php versions must match'
+commit=os.environ.get('GITHUB_SHA') or subprocess.check_output(['git','rev-parse','HEAD'],cwd=repo,text=True).strip()
+assert re.fullmatch(r'[a-f0-9]{40}',commit),'Invalid source commit SHA'
 out.mkdir(parents=True)
 with tempfile.TemporaryDirectory(prefix='blessing-php85-') as tmp:
  stage=Path(tmp)
@@ -31,12 +33,13 @@ with tempfile.TemporaryDirectory(prefix='blessing-php85-') as tmp:
   for f in (stage/name).rglob('*'):
    if f.is_file() and f.name!='.gitignore':f.unlink()
  for name in ['storage/framework/cache/data','storage/framework/sessions','storage/framework/views','storage/logs','resources/views/overrides']:(stage/name).mkdir(parents=True,exist_ok=True)
+ (stage/'config/build.php').write_text("<?php\n\nreturn ['commit' => '"+commit+"'];\n")
  archive=out/f'blessing-skin-server_{version}_php85.zip'
  with zipfile.ZipFile(archive,'w',zipfile.ZIP_DEFLATED) as z:
   for f in sorted(stage.rglob('*')):
    if f.is_file():z.write(f,str(f.relative_to(stage)))
 checksum=hashlib.sha256(archive.read_bytes()).hexdigest()
-manifest={'version':version,'commit':os.environ.get('GITHUB_SHA') or subprocess.check_output(['git','rev-parse','HEAD'],cwd=repo,text=True).strip(),'php':'8.5','packages':[{'name':'blessing-skin-server','version':version,'filename':archive.name,'sha256':checksum}]}
+manifest={'version':version,'commit':commit,'php':'8.5','packages':[{'name':'blessing-skin-server','version':version,'filename':archive.name,'sha256':checksum}]}
 (out/'manifest.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+'\n')
 (out/'SHA256SUMS').write_text(checksum+'  '+archive.name+'\n'+hashlib.sha256((out/'manifest.json').read_bytes()).hexdigest()+'  manifest.json\n')
 print(archive)

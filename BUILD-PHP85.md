@@ -1,6 +1,6 @@
 # DreamCraft Blessing Skin Server Patch
 
-基于 Blessing Skin Server 6.0.2 开发快照 `52f6fef` 的 PHP 8.5 / Laravel 12 补丁分支，当前版本 **6.1.0.1**。
+基于 Blessing Skin Server 6.0.2 开发快照 `52f6fef` 的 PHP 8.5 / Laravel 12 补丁分支，当前版本 **6.1.0.2**。
 
 ## 修改历史
 
@@ -32,3 +32,5 @@ python3 tools/build-php85.py --output /absolute/path/to/new-output
 更新说明见 PATCH-INSTALL.md，各版本更新内容见 CHANGELOG-PATCH.md。原项目作者与 MIT 许可保留在下方和 LICENSE 中。
 
 Laravel 12 升级、依赖来源与安全修补细节见 [安全审计记录](docs/SECURITY-2026-11-20.md)。
+
+运行包的 `config/build.php` 由 Actions 按当前 `github.sha` 写入，源码中默认提交字段为空。Release 正文按版本读取 `CHANGELOG-PATCH.md`；检查更新页面仅显示当前版本日志。

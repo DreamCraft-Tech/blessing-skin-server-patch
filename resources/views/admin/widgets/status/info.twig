@@ -12,7 +12,7 @@
           {% for key, value in info %}
             <tr>
               <td>{{ trans("admin.status.#{category}.#{key}") }}</td>
-              <td>{{ value }}</td>
+              <td>{% if category == 'bs' and key == 'commit' %}<code class="text-break">{{ value }}</code>{% else %}{{ value }}{% endif %}</td>
             </tr>
           {% endfor %}
         {% endfor %}

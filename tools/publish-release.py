@@ -4,6 +4,14 @@ import argparse,hashlib,json,os,re,subprocess,sys
 from datetime import datetime,timezone,timedelta
 from pathlib import Path
 
+CHANGELOG = Path(__file__).resolve().parents[1] / 'CHANGELOG-PATCH.md'
+
+def server_release_notes(version):
+    text=CHANGELOG.read_text()
+    match=re.search(r'^# '+re.escape(version)+r'(?:[ \t][^\n]*)?\n(.*?)(?=^# |\Z)',text,re.M|re.S)
+    if not match or not match[1].strip():raise ValueError('Missing changelog for version '+version)
+    return match[1].strip()+'\n'
+
 def gh(*args, optional=False):
     p=subprocess.run(['gh',*args],text=True,capture_output=True)
     if p.returncode:
@@ -92,13 +100,13 @@ def publish(directory,kind):
     validate_assets(directory)
     notes=directory.parent/'release-notes.md'
     if kind=='server':
-        body='完整 PHP 8.5 运行包，包含生产 Composer 依赖与已构建前端，可在站点“检查更新”页面上传升级。\n\n'
+        body=server_release_notes(version)
     else:
         body='每个 ZIP 对应一个可单独安装的插件，按站点需要选择下载。\n\n| 插件 | 版本 | 安装包 |\n| --- | --- | --- |\n'
         for row in data['packages']:
             body+=f"| {row['name']} | {row['version']} | [{row['filename']}](https://github.com/{repo}/releases/download/{tag}/{row['filename']}) |\n"
         body+='\nCatalog-SHA256: '+data['catalog_sha256']+'\nRegistry-Spec: 1\n'
-    body+='\n源码提交：`'+sha+'`。文件校验值见 SHA256SUMS，版本清单见 manifest.json。\n'
+    if kind!='server':body+='\n源码提交：`'+sha+'`。文件校验值见 SHA256SUMS，版本清单见 manifest.json。\n'
     notes.write_text(body)
     if not existing:gh('release','create',tag,'--repo',repo,'--target',sha,'--title',title,'--notes-file',str(notes),'--draft')
     gh('release','upload',tag,'--repo',repo,'--clobber',*[str(files[name]) for name in sorted(files)])

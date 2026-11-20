@@ -55,6 +55,8 @@ jobs:
           yarn type:check
           yarn test --runInBand
       - name: Build complete production runtime
+        env:
+          GITHUB_SHA: ${{ github.sha }}
         run: |
           rm -f storage/install.lock
           python3 tools/build-php85.py --output build-php85
@@ -88,7 +90,7 @@ jobs:
         with:
           name: server-runtime
           path: release-assets
-      - name: Publish verified assets
+      - name: Publish verified assets with version changelog
         env:
           GH_TOKEN: ${{ github.token }}
         run: python3 tools/publish-release.py --kind server --assets release-assets

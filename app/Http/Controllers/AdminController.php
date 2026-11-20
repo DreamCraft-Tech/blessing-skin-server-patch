@@ -12,7 +12,6 @@ use Illuminate\Filesystem\Filesystem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Str;
 
 class AdminController extends Controller
 {
@@ -98,9 +97,10 @@ class AdminController extends Controller
             'title' => trans($plugin->title), 'version' => $plugin->version,
         ]);
 
-        if ($filesystem->exists(base_path('.git'))) {
+        $commit = (string) config('build.commit', '');
+        if ($commit === '' && $filesystem->exists(base_path('.git'))) {
             $process = new \Symfony\Component\Process\Process(
-                ['git', 'log', '--pretty=%H', '-1']
+                ['git', 'log', '--pretty=%H', '-1'], base_path()
             );
             $process->run();
             $commit = $process->isSuccessful() ? trim($process->getOutput()) : '';
@@ -126,7 +126,7 @@ class AdminController extends Controller
                     'version' => config('app.version'),
                     'env' => config('app.env'),
                     'debug' => config('app.debug') ? trans('general.yes') : trans('general.no'),
-                    'commit' => Str::limit($commit ?? '', 16, ''),
+                    'commit' => $commit,
                     'laravel' => app()->version(),
                 ],
                 'server' => [

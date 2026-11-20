@@ -39,6 +39,12 @@ class AdminControllerTest extends TestCase
             ->assertJsonStructure(['labels', 'xAxis', 'data']);
     }
 
+    public function testStatusUsesFullBuildCommitAheadOfLocalGit()
+    {
+        config(['build.commit' => str_repeat('f', 40)]);
+        $this->get('/admin/status')->assertOk()->assertSee(str_repeat('f', 40));
+    }
+
     public function testStatus()
     {
         $this->mock(\App\Services\PluginManager::class, function ($mock) {

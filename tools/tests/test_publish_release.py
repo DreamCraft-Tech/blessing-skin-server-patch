@@ -6,7 +6,8 @@ class ReleaseTest(unittest.TestCase):
  def setUp(self):
   self.tmp=tempfile.TemporaryDirectory();self.root=Path(self.tmp.name)/'assets';self.root.mkdir();self.calls=[]
   self.env=patch.dict(os.environ,{'GITHUB_REPOSITORY':'DreamCraft-Tech/test','GITHUB_SHA':'a'*40,'GITHUB_RUN_NUMBER':'42','FORCE_RELEASE':'false'});self.env.start()
- def tearDown(self):self.env.stop();self.tmp.cleanup()
+  self.changelog=Path(self.tmp.name)/'CHANGELOG.md';self.changelog.write_text('# 1.0.0 · 2026-11-20\n\n- Current release changes.\n\n# 0.9.0\n\n- Older changes.\n');self.changelog_patch=patch.object(release,'CHANGELOG',self.changelog);self.changelog_patch.start()
+ def tearDown(self):self.changelog_patch.stop();self.env.stop();self.tmp.cleanup()
  def assets(self,kind='server'):
   rows=[]
   for name in (['server'] if kind=='server' else ['one','two']):
@@ -27,6 +28,16 @@ class ReleaseTest(unittest.TestCase):
   with patch.object(release,'gh',side_effect=self.fake):release.publish(self.root,'server')
   verbs=[x[1] for x in self.calls];self.assertLess(verbs.index('create'),verbs.index('upload'));self.assertLess(verbs.index('upload'),verbs.index('edit'));self.assertIn('--draft',self.calls[1])
   create=next(x for x in self.calls if x[1]=='create');self.assertEqual(create[create.index('--title')+1],'Release 1.0.0')
+ def test_server_release_body_uses_only_current_changelog(self):
+  self.assets()
+  with patch.object(release,'gh',side_effect=self.fake):release.publish(self.root,'server')
+  body=(self.root.parent/'release-notes.md').read_text()
+  self.assertIn('Current release changes.',body);self.assertNotIn('Older changes.',body);self.assertNotIn('完整 PHP 8.5 运行包',body)
+ def test_missing_or_prefix_version_changelog_is_not_substituted(self):
+  self.changelog.write_text('# 6.1.0.2 · 2026-11-20\n\n- New changes.\n\n# 6.1.0\n\n- Prior changes.\n')
+  self.assertEqual(release.server_release_notes('6.1.0.2'),'- New changes.\n')
+  self.assertEqual(release.server_release_notes('6.1.0'),'- Prior changes.\n')
+  with self.assertRaises(ValueError):release.server_release_notes('6.1.0.1')
  def test_bad_checksum_and_missing_asset_stop_before_github(self):
   self.assets();(self.root/'server.zip').write_bytes(b'tampered')
   with patch.object(release,'gh') as gh:

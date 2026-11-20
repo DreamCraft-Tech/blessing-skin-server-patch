@@ -19,6 +19,7 @@ for row in manifest['packages']:
             for needed in ['artisan','bootstrap/app.php','config/app.php','public/index.php','vendor/autoload.php','resources/views/assets/app.twig','public/app/communications.js']:assert needed in names,needed
             assert json.loads(z.read('composer.json'))['name']=='bs-community/blessing-skin-server'
             assert manifest['version'] in z.read('config/app.php').decode()
+            assert re.search(r"'commit'\s*=>\s*'"+re.escape(manifest['commit'])+r"'",z.read('config/build.php').decode()),'Runtime commit must match manifest'
             installed=json.loads(z.read('vendor/composer/installed.json'))
             assert installed['dev'] is False,'Runtime must contain production dependencies only'
         else:

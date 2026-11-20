@@ -126,7 +126,7 @@
       <div class="card card-outline card-info">
         <div class="card-header p-0">
           <button type="button" class="btn btn-block text-left font-weight-bold collapsed p-3" data-toggle="collapse" data-target="#version-changelog-{{ loop.index }}" aria-expanded="false" aria-controls="version-changelog-{{ loop.index }}">
-            {{ release.version == info.current ? '当前版本更新日志' : '版本更新日志' }} · {{ release.version }} <span class="float-right"><i class="fas fa-angle-down" aria-hidden="true"></i></span>
+            当前版本更新日志 · {{ release.version }} <span class="float-right"><i class="fas fa-angle-down" aria-hidden="true"></i></span>
           </button>
         </div>
         <div class="card-body collapse" id="version-changelog-{{ loop.index }}">
