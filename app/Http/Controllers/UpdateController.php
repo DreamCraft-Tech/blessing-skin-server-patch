@@ -165,7 +165,7 @@ class UpdateController extends Controller
         $input = $request->validate(['id' => 'required|string|size:32']);
         $pending = app(UpdateTasks::class)->pending((int) $request->user()->uid);
         $session = $request->session()->get('system_update_package');
-        $matches = fn ($task) => is_array($task) && isset($task['id']) && hash_equals($task['id'], $input['id']);
+        $matches = fn ($task) => is_array($task) && isset($task['id']) && (!isset($task['owner_id']) || (int) $task['owner_id'] === (int) $request->user()->uid) && hash_equals($task['id'], $input['id']);
         if (!$matches($pending) && !$matches($session)) {
             return redirect()->route('admin.update.view')->with('update_error', '更新任务已失效，请重新下载或上传运行包后确认安装。');
         }

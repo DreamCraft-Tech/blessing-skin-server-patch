@@ -10,6 +10,7 @@ class UpdateTasks
     public function remember(int $userId, array $package): array
     {
         $package = Arr::only($package, ['id', 'version', 'sha256', 'count', 'created_at']);
+        $package['owner_id'] = $userId;
         $package['created_at'] = $package['created_at'] ?? time();
         if (!Storage::disk('local')->put($this->key($userId), json_encode($package, JSON_THROW_ON_ERROR))) {
             throw new \RuntimeException('无法保存更新任务，请检查 storage 目录权限和磁盘空间。');

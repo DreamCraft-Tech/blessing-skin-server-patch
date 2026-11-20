@@ -95,7 +95,7 @@ class UpdateControllerTest extends TestCase
     {
         $info = ['id' => str_repeat('a', 32), 'version' => '6.0.6_patch', 'sha256' => str_repeat('b', 64), 'count' => 100, 'files' => [], 'created_at' => time()];
         $this->mock(\App\Services\UpdatePackage::class, fn ($mock) => $mock->shouldReceive('prepare')->once()->andReturn($info));
-        $this->post('/admin/update/upload', ['package' => \Illuminate\Http\UploadedFile::fake()->create('runtime.zip', 100, 'application/zip')])->assertRedirect('/admin/update')->assertSessionHas('system_update_package', \Illuminate\Support\Arr::except($info, ['files']));
+        $this->post('/admin/update/upload', ['package' => \Illuminate\Http\UploadedFile::fake()->create('runtime.zip', 100, 'application/zip')])->assertRedirect('/admin/update')->assertSessionHas('system_update_package', \Illuminate\Support\Arr::except($info, ['files']) + ['owner_id' => (int) auth()->id()]);
         Http::fake([config('app.update_source') => Http::response('', 404)]);
         $this->get('/admin/update')->assertOk()->assertSee('确认安装 6.0.6_patch')->assertSee(str_repeat('b', 64));
     }
@@ -145,7 +145,7 @@ class UpdateControllerTest extends TestCase
 
             return Http::response($this->fakeUpdateInfo('8.9.3', ['package' => 'full', 'sha256' => hash('sha256', 'runtime')]));
         });
-        $this->postJson('/admin/update/download')->assertJson(['code' => 0, 'data' => ['review' => true]])->assertSessionHas('system_update_package', $pending);
+        $this->postJson('/admin/update/download')->assertJson(['code' => 0, 'data' => ['review' => true]])->assertSessionHas('system_update_package', $pending + ['owner_id' => (int) auth()->id()]);
     }
 
     public function testFullRuntimeRejectsHashMismatchBeforePreparation()
@@ -176,7 +176,8 @@ class UpdateControllerTest extends TestCase
     public function testAnotherSuperAdministratorCannotInstallOtherUsersTask(): void
     {
         $id = str_repeat('d', 32);
-        app(\App\Services\UpdateTasks::class)->remember((int) auth()->id(), ['id' => $id]);
+        $task = app(\App\Services\UpdateTasks::class)->remember((int) auth()->id(), ['id' => $id]);
+        session()->put('system_update_package', $task);
         $this->actingAs(User::factory()->superAdmin()->create());
         $this->mock(\App\Services\UpdatePackage::class, fn ($mock) => $mock->shouldNotReceive('install'));
         $this->post('/admin/update/install', ['id' => $id])->assertRedirect('/admin/update')->assertSessionHas('update_error');
