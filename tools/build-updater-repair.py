@@ -13,7 +13,7 @@ with zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED) as bundle:
     for name in files:
         if name == 'app/Http/Controllers/UpdateController.php':
             source = (root / name).read_text()
-            source = source.replace("        try {\n            $packages->install($input['id']);", "        $success = redirect()->route('admin.update.view');\n        $failure = redirect()->route('admin.update.view');\n        try {\n            Artisan::call('view:clear');\n            Artisan::call('twig:clean');\n            $packages->install($input['id']);")
+            source = source.replace("        try {\n            $packages->install($input['id']);", "        $success = redirect()->route('admin.update.view');\n        $failure = redirect()->route('admin.update.view');\n        try {\n            Artisan::call('view:clear');\n            Artisan::call('twig:clean');\n            $filesystem->delete(base_path('bootstrap/cache/packages.php'));\n            $filesystem->delete(base_path('bootstrap/cache/services.php'));\n            $packages->install($input['id']);")
             source = source.replace("            Artisan::call('view:clear');\n            Artisan::call('twig:clean');\n            $request->session()->forget", "            $request->session()->forget")
             source = source.replace("return redirect()->route('admin.update.view')->with('update_notice', '系统程序已更新", "return $success->with('update_notice', '系统程序已更新")
             source = source.replace("return redirect()->route('admin.update.view')->with('update_error', $e instanceof \\RuntimeException ? $e->getMessage() : '安装失败", "return $failure->with('update_error', $e instanceof \\RuntimeException ? $e->getMessage() : '安装失败")
