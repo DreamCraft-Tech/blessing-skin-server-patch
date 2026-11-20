@@ -12,7 +12,7 @@
       <div class="card card-outline card-info"><div class="card-body"><a href="{{ route('admin.communications.index') }}">前往通知与公告</a></div></div>
       {{ forms.meta.render()|raw }}
       {{ forms.recaptcha.render()|raw }}
-      {{ forms.updates.render()|raw }}
+      {% if forms.updates %}{{ forms.updates.render()|raw }}{% endif %}
     </div>
   </div>
 {% endblock %}

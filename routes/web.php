@@ -199,7 +199,7 @@ Route::prefix('admin')
             Route::prefix('market')->name('market.')->group(function () {
                 Route::view('', 'admin.market')->name('view');
                 Route::get('list', 'MarketController@marketData')->name('list');
-                Route::post('download', 'MarketController@download')->name('download');
+                Route::post('download', 'MarketController@download')->middleware('role:super-admin')->name('download');
             });
         });
 

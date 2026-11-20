@@ -36,6 +36,10 @@ jobs:
           npm install --global yarn@1.22.22
           composer install --no-interaction --prefer-dist
           yarn install --frozen-lockfile --non-interactive
+      - name: Dependency security audit
+        run: |
+          composer audit --locked --abandoned=report
+          yarn audit
       - name: Syntax and release integrity tests
         run: |
           python3 tools/check-source.py

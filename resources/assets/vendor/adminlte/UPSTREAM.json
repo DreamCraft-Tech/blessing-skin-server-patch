@@ -1,0 +1,13 @@
+{
+  "name": "AdminLTE",
+  "version": "3.2.0",
+  "source": "https://github.com/ColorlibHQ/AdminLTE/tree/v3.2.0",
+  "sha256": {
+    "adminlte.js": "c872388958d4ae5ca26435e85741d7901dd2e6cb125b91b9cea857a2429559b4",
+    "adminlte.components.min.css": "79a8f335a1104ff2b9a6521d1981090c444920a340a8a3a54eceee389b13e342",
+    "adminlte.core.min.css": "3c641052a6634cc3e583a2e63f73b8be5f92ff67c9c6b68eb63051c81de7a05a",
+    "adminlte.pages.min.css": "d81c1f38e7d7b57a19977f14d70bb70f7d926ea94604fa5f7422d4c3456e8abb",
+    "adminlte.light.min.css": "5876438621b0bad439a80b04090208754ed88c8aa1c1883da3becd4f7464bce4",
+    "LICENSE": "6811af56d87e64675ad70c66e9c7d28524e18e8d34e9420e60c00b5657d1604c"
+  }
+}

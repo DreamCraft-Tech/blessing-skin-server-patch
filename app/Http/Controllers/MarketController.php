@@ -66,6 +66,11 @@ class MarketController extends Controller
         ])->get($metadata['dist']['url']);
 
         if ($response->ok()) {
+            if (isset($metadata['dist']['sha256']) && (!is_string($metadata['dist']['sha256']) || !preg_match('/\A[a-f0-9]{64}\z/D', $metadata['dist']['sha256']) || !hash_equals($metadata['dist']['sha256'], hash_file('sha256', $path)))) {
+                @unlink($path);
+
+                return json('插件安装包校验失败，请重新获取仓库信息。', 1);
+            }
             $unzip->extract($path, $manager->getPluginsDirs()->first());
 
             return json(trans('admin.plugins.market.install-success'), 0);

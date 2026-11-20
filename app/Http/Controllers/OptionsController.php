@@ -211,6 +211,7 @@ class OptionsController extends Controller
         })->handle();
 
         if (request()->isMethod('POST') && request('option') === 'updates') {
+            abort_unless((int) auth()->user()->permission >= \App\Models\User::SUPER_ADMIN, 403);
             request()->validate(['update_source_preset' => 'nullable|in:official,patch']);
             if ($preset = request('update_source_preset')) {
                 request()->merge(config('updates.sources.'.$preset));
@@ -225,6 +226,7 @@ class OptionsController extends Controller
             '<div class="mt-3 d-flex flex-wrap"><button type="submit" name="update_source_preset" value="official" class="btn btn-default mr-2 mb-2">切换到 bs-community 官方源</button><button type="submit" name="update_source_preset" value="patch" class="btn btn-primary mb-2">切换到 DreamCraft-Tech 第三方修补源</button></div>',
             'danger'
         )->before(function () {
+            abort_unless((int) auth()->user()->permission >= \App\Models\User::SUPER_ADMIN, 403);
             request()->validate([
                 'update_source' => 'nullable|url:http,https|max:2048',
                 'plugins_registry' => ['nullable', 'string', 'max:2048', function ($attribute, $value, $fail) {
@@ -242,6 +244,10 @@ class OptionsController extends Controller
             $form->with('update_source', option('update_source') ?: config('app.update_source'));
             $form->with('plugins_registry', option('plugins_registry') ?: config('plugins.registry'));
         });
+
+        if ((int) auth()->user()->permission < \App\Models\User::SUPER_ADMIN) {
+            $updates = null;
+        }
 
         return view('admin.options')
             ->with('forms', compact('general', 'meta', 'recaptcha', 'updates'));

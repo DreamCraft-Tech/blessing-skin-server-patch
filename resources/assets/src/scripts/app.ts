@@ -1,5 +1,5 @@
 import './init' // must be first
-import 'admin-lte'
+import '../../vendor/adminlte/adminlte.js'
 import './extra'
 import './i18n'
 import './net'

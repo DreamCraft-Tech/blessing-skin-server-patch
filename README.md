@@ -1,6 +1,6 @@
 # DreamCraft Blessing Skin Server Patch
 
-基于 Blessing Skin Server 6.0.2 开发快照 `52f6fef` 的 PHP 8.5 / Laravel 10 补丁分支，当前版本 **6.0.10_patch**。
+基于 Blessing Skin Server 6.0.2 开发快照 `52f6fef` 的 PHP 8.5 / Laravel 12 补丁分支，当前版本 **6.0.11_patch**。
 
 ## 自动检查与发布
 
@@ -79,7 +79,7 @@ Blessing Skin is an open-source project written in PHP, which means you can depl
 Blessing Skin has only a few system requirements. In most cases, these PHP extensions are already enabled.
 
 - Web server with URL rewriting enabled (Nginx or Apache)
-- PHP >= 8.1.0
+- PHP >= 8.5.0
 - PHP Extensions
   - OpenSSL >= 1.1.1 (TLS 1.3)
   - PDO
@@ -127,3 +127,5 @@ When reporting a problem, please attach your log file (located at `storage/logs/
 MIT License
 
 Copyright (c) 2016-present The Blessing Skin Team
+
+Laravel 12 升级、依赖来源与安全修补细节见 [安全审计记录](docs/SECURITY-2026-11-20.md)。

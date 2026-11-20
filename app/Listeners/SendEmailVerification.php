@@ -15,7 +15,7 @@ class SendEmailVerification
             $url = URL::signedRoute('auth.verify', ['user' => $user->uid], null, false);
 
             try {
-                Mail::to($user->email)->send(new EmailVerification(url($url)));
+                Mail::to($user->email)->send(new EmailVerification(\App\Services\AuthLink::absolute($url)));
             } catch (\Exception $e) {
                 report($e);
             }

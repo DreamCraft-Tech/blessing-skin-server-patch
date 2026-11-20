@@ -286,7 +286,7 @@ class AuthController extends Controller
             false
         );
         try {
-            Mail::to($email)->send(new ForgotPassword(url($url)));
+            Mail::to($email)->send(new ForgotPassword(\App\Services\AuthLink::absolute($url)));
         } catch (\Exception $e) {
             report($e);
             $dispatcher->dispatch('auth.forgot.failed', [$user, $url]);

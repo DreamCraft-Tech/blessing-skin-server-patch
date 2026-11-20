@@ -20,34 +20,33 @@ function parseURI(uri: string): ts.ArrowFunction {
       param === 'user' ||
       param === 'player' ||
       param === 'report'
-        ? ts.createKeywordTypeNode(ts.SyntaxKind.NumberKeyword)
-        : ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword)
+        ? ts.factory.createKeywordTypeNode(ts.SyntaxKind.NumberKeyword)
+        : ts.factory.createKeywordTypeNode(ts.SyntaxKind.StringKeyword)
 
-    return ts.createArrowFunction(
+    return ts.factory.createArrowFunction(
       undefined,
       undefined,
       [
-        ts.createParameter(
+        ts.factory.createParameterDeclaration(
           undefined,
           undefined,
-          undefined,
-          ts.createIdentifier(param),
+          ts.factory.createIdentifier(param),
           undefined,
           type,
           undefined,
         ),
       ],
       undefined,
-      ts.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
-      ts.createTemplateExpression(
-        ts.createTemplateHead(
+      ts.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
+      ts.factory.createTemplateExpression(
+        ts.factory.createTemplateHead(
           '/' + uri.slice(0, matches.index),
           '/' + uri.slice(0, matches.index),
         ),
         [
-          ts.createTemplateSpan(
-            ts.createIdentifier(param),
-            ts.createTemplateTail(
+          ts.factory.createTemplateSpan(
+            ts.factory.createIdentifier(param),
+            ts.factory.createTemplateTail(
               uri.slice(matches.index + matches[0].length),
               uri.slice(matches.index + matches[0].length),
             ),
@@ -57,15 +56,18 @@ function parseURI(uri: string): ts.ArrowFunction {
     )
   }
 
-  return ts.createArrowFunction(
+  return ts.factory.createArrowFunction(
     undefined,
     undefined,
     [],
     undefined,
-    ts.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
-    ts.createAsExpression(
-      ts.createStringLiteral(`/${uri}`),
-      ts.createTypeReferenceNode(ts.createIdentifier('const'), undefined),
+    ts.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
+    ts.factory.createAsExpression(
+      ts.factory.createStringLiteral(`/${uri}`),
+      ts.factory.createTypeReferenceNode(
+        ts.factory.createIdentifier('const'),
+        undefined,
+      ),
     ),
   )
 }
@@ -75,26 +77,24 @@ function parseTree(tree: Tree): ts.ObjectLiteralExpression {
     .sort(([a], [b]) => (a > b ? 1 : -1))
     .map(([key, value]) => {
       if (typeof value === 'string') {
-        return ts.createPropertyAssignment(
-          ts.createIdentifier(key),
+        return ts.factory.createPropertyAssignment(
+          ts.factory.createIdentifier(key),
           parseURI(value),
         )
       } else {
-        return ts.createPropertyAssignment(
-          ts.createIdentifier(key),
+        return ts.factory.createPropertyAssignment(
+          ts.factory.createIdentifier(key),
           parseTree(value),
         )
       }
     })
 
-  return ts.createObjectLiteral(properties)
+  return ts.factory.createObjectLiteralExpression(properties)
 }
 
-const { stdout } = spawnSync(
-  'php',
-  ['artisan', 'route:list', '--json', '--columns=uri,name'],
-  { encoding: 'utf-8' },
-)
+const { stdout } = spawnSync('php', ['artisan', 'route:list', '--json'], {
+  encoding: 'utf-8',
+})
 let routes: Route[] = []
 try {
   routes = JSON.parse(stdout)
@@ -126,12 +126,7 @@ routes
     }, tree)
   })
 
-const ast = ts.createExportAssignment(
-  undefined,
-  undefined,
-  undefined,
-  parseTree(tree),
-)
+const ast = ts.factory.createExportAssignment(undefined, false, parseTree(tree))
 const sourceFile = ts.createSourceFile(
   'urls.ts',
   '',

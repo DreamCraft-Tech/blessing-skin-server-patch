@@ -41,16 +41,7 @@ class AppServiceProvider extends ServiceProvider
             }
         }
 
-        /**
-         * Check whether the request is secure or not.
-         * True is always returned when "X-Forwarded-Proto" header is set.
-         *
-         * We define this function because Symfony's "Request::isSecure()" method
-         * needs "setTrustedProxies()" which sucks when load balancer is enabled.
-         */
-        $isRequestSecure = $request->server('HTTPS') === 'on'
-            || $request->server('HTTP_X_FORWARDED_PROTO') === 'https'
-            || $request->server('HTTP_X_FORWARDED_SSL') === 'on';
+        $isRequestSecure = $request->isSecure();
 
         if (option('force_ssl') || $isRequestSecure) {
             URL::forceScheme('https');

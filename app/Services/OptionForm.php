@@ -208,7 +208,7 @@ class OptionForm
         $request = request();
         $allPostData = $request->all();
 
-        if ($request->isMethod('POST') && Arr::get($allPostData, 'option') == $this->id) {
+        if ($request->isMethod('POST') && Arr::get($allPostData, 'option') === $this->id) {
             if (!is_null($callback)) {
                 call_user_func($callback, $this);
             }

@@ -23,6 +23,9 @@ class AuthServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        $this->loadMigrationsFrom(base_path('vendor/laravel/passport/database/migrations'));
+        Passport::enablePasswordGrant();
+
         $defaultScopes = [
             'User.Read' => 'auth.oauth.scope.user.read',
             'Notification.Read' => 'auth.oauth.scope.notification.read',

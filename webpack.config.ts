@@ -1,5 +1,6 @@
 import * as path from 'path'
 import * as webpack from 'webpack'
+import type { Configuration as DevServerConfiguration } from 'webpack-dev-server'
 import { execSync } from 'child_process'
 import MiniCssExtractPlugin from 'mini-css-extract-plugin'
 import CssMinimizerPlugin from 'css-minimizer-webpack-plugin'
@@ -10,7 +11,9 @@ interface Env {
   production?: boolean
 }
 
-export default function (env?: Env): webpack.Configuration {
+export default function (
+  env?: Env,
+): webpack.Configuration & { devServer?: DevServerConfiguration } {
   const isDev = !env?.production
   const isGitpod = 'GITPOD_REPO_ROOT' in process.env
   const htmlPublicPath = isDev
@@ -26,10 +29,10 @@ export default function (env?: Env): webpack.Configuration {
       app: ['react-hot-loader/patch', '@/index.tsx'],
       style: [
         '@/styles/common.css',
-        'admin-lte/dist/css/alt/adminlte.components.min.css',
-        'admin-lte/dist/css/alt/adminlte.core.min.css',
-        'admin-lte/dist/css/alt/adminlte.pages.min.css',
-        'admin-lte/dist/css/alt/adminlte.light.min.css',
+        './resources/assets/vendor/adminlte/adminlte.components.min.css',
+        './resources/assets/vendor/adminlte/adminlte.core.min.css',
+        './resources/assets/vendor/adminlte/adminlte.pages.min.css',
+        './resources/assets/vendor/adminlte/adminlte.light.min.css',
         '@fortawesome/fontawesome-free/css/all.min.css',
       ],
       home: '@/scripts/homePage.ts',
@@ -144,13 +147,9 @@ export default function (env?: Env): webpack.Configuration {
     },
     devtool: isDev ? 'eval-source-map' : 'source-map',
     devServer: {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-      },
-      host: '0.0.0.0',
+      host: isGitpod ? '0.0.0.0' : '127.0.0.1',
       hot: true,
-      hotOnly: true,
-      stats: 'errors-warnings',
+      devMiddleware: { stats: 'errors-warnings' },
       allowedHosts: ['localhost'].concat(
         isDev && isGitpod ? ['.gitpod.io'] : [],
       ),

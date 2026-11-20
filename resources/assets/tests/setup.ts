@@ -1,6 +1,7 @@
 /* eslint-disable max-classes-per-file */
 import * as fs from 'fs'
-import 'jest-extended'
+import * as matchers from 'jest-extended'
+expect.extend(matchers)
 import '@testing-library/jest-dom'
 import yaml from 'js-yaml'
 
